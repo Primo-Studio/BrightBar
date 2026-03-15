@@ -1,0 +1,33 @@
+{
+  "": {
+    "swift-dependencies": "/private/tmp/brightbar-mvp/.build/arm64-apple-macosx/debug/BrightBar.build/master.swiftdeps"
+  },
+  "/private/tmp/brightbar-mvp/Sources/BrightBarApp.swift": {
+    "dependencies": "/private/tmp/brightbar-mvp/.build/arm64-apple-macosx/debug/BrightBar.build/BrightBarApp.d",
+    "object": "/private/tmp/brightbar-mvp/.build/arm64-apple-macosx/debug/BrightBar.build/BrightBarApp.swift.o",
+    "swiftmodule": "/private/tmp/brightbar-mvp/.build/arm64-apple-macosx/debug/BrightBar.build/BrightBarApp~partial.swiftmodule",
+    "swift-dependencies": "/private/tmp/brightbar-mvp/.build/arm64-apple-macosx/debug/BrightBar.build/BrightBarApp.swiftdeps",
+    "diagnostics": "/private/tmp/brightbar-mvp/.build/arm64-apple-macosx/debug/BrightBar.build/BrightBarApp.dia"
+  },
+  "/private/tmp/brightbar-mvp/Sources/BrightnessManager.swift": {
+    "dependencies": "/private/tmp/brightbar-mvp/.build/arm64-apple-macosx/debug/BrightBar.build/BrightnessManager.d",
+    "object": "/private/tmp/brightbar-mvp/.build/arm64-apple-macosx/debug/BrightBar.build/BrightnessManager.swift.o",
+    "swiftmodule": "/private/tmp/brightbar-mvp/.build/arm64-apple-macosx/debug/BrightBar.build/BrightnessManager~partial.swiftmodule",
+    "swift-dependencies": "/private/tmp/brightbar-mvp/.build/arm64-apple-macosx/debug/BrightBar.build/BrightnessManager.swiftdeps",
+    "diagnostics": "/private/tmp/brightbar-mvp/.build/arm64-apple-macosx/debug/BrightBar.build/BrightnessManager.dia"
+  },
+  "/private/tmp/brightbar-mvp/Sources/ContentView.swift": {
+    "dependencies": "/private/tmp/brightbar-mvp/.build/arm64-apple-macosx/debug/BrightBar.build/ContentView.d",
+    "object": "/private/tmp/brightbar-mvp/.build/arm64-apple-macosx/debug/BrightBar.build/ContentView.swift.o",
+    "swiftmodule": "/private/tmp/brightbar-mvp/.build/arm64-apple-macosx/debug/BrightBar.build/ContentView~partial.swiftmodule",
+    "swift-dependencies": "/private/tmp/brightbar-mvp/.build/arm64-apple-macosx/debug/BrightBar.build/ContentView.swiftdeps",
+    "diagnostics": "/private/tmp/brightbar-mvp/.build/arm64-apple-macosx/debug/BrightBar.build/ContentView.dia"
+  },
+  "/private/tmp/brightbar-mvp/Sources/DisplayInfo.swift": {
+    "dependencies": "/private/tmp/brightbar-mvp/.build/arm64-apple-macosx/debug/BrightBar.build/DisplayInfo.d",
+    "object": "/private/tmp/brightbar-mvp/.build/arm64-apple-macosx/debug/BrightBar.build/DisplayInfo.swift.o",
+    "swiftmodule": "/private/tmp/brightbar-mvp/.build/arm64-apple-macosx/debug/BrightBar.build/DisplayInfo~partial.swiftmodule",
+    "swift-dependencies": "/private/tmp/brightbar-mvp/.build/arm64-apple-macosx/debug/BrightBar.build/DisplayInfo.swiftdeps",
+    "diagnostics": "/private/tmp/brightbar-mvp/.build/arm64-apple-macosx/debug/BrightBar.build/DisplayInfo.dia"
+  }
+}
