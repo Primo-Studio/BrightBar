@@ -32,14 +32,14 @@ final class HotkeyManager {
     private var eventHandler: EventHandlerRef?
     private var brightnessKeyController: BrightnessKeyController?
     private var callback: ((_ isUp: Bool) -> Void)?
-    private var registered = false
+    private var registrationStatus = HotkeyRegistrationStatus(optionHotkeys: false, brightnessKeyMode: .disabled)
 
     @discardableResult
-    func register(callback: @escaping (_ isUp: Bool) -> Void) -> Bool {
+    func register(callback: @escaping (_ isUp: Bool) -> Void) -> HotkeyRegistrationStatus {
         self.callback = callback
 
-        if registered {
-            return true
+        if registrationStatus.optionHotkeys || registrationStatus.brightnessKeyMode != .disabled {
+            return registrationStatus
         }
 
         var eventType = EventTypeSpec(
@@ -103,11 +103,25 @@ final class HotkeyManager {
         )
 
         brightnessKeyController = BrightnessKeyController(callback: callback)
-        let brightnessKeysRegistered = brightnessKeyController?.start() ?? false
+        let brightnessKeyMode = brightnessKeyController?.start() ?? .disabled
 
-        registered = handlerStatus == noErr && upStatus == noErr && downStatus == noErr && brightnessKeysRegistered
-        return registered
+        registrationStatus = HotkeyRegistrationStatus(
+            optionHotkeys: handlerStatus == noErr && upStatus == noErr && downStatus == noErr,
+            brightnessKeyMode: brightnessKeyMode
+        )
+        return registrationStatus
     }
+}
+
+struct HotkeyRegistrationStatus {
+    let optionHotkeys: Bool
+    let brightnessKeyMode: BrightnessKeyMode
+}
+
+enum BrightnessKeyMode: Equatable {
+    case disabled
+    case observing
+    case intercepting
 }
 
 fileprivate final class BrightnessKeyController {
@@ -136,13 +150,13 @@ fileprivate final class BrightnessKeyController {
         }
     }
 
-    func start() -> Bool {
+    func start() -> BrightnessKeyMode {
         if startInterceptingTap() {
-            return true
+            return .intercepting
         }
 
         startFallbackMonitors()
-        return localMonitor != nil || globalMonitor != nil
+        return localMonitor != nil || globalMonitor != nil ? .observing : .disabled
     }
 
     private func startInterceptingTap() -> Bool {

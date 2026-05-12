@@ -28,7 +28,8 @@ private let ddcBrightnessCommand: UInt8 = 0x10
 @MainActor
 final class BrightnessManager: ObservableObject {
     @Published var displays: [DisplayInfo] = []
-    @Published var hotkeysEnabled = false
+    @Published var optionHotkeysEnabled = false
+    @Published var brightnessKeyMode: BrightnessKeyMode = .disabled
     @Published var lastErrorMessage: String?
 
     private let defaults = UserDefaults.standard
@@ -38,6 +39,8 @@ final class BrightnessManager: ObservableObject {
     private let hardwareDimmingFloor = 0.2
     private let maxSoftwareDimOpacity = 0.88
     private var dimmingWindows: [CGDirectDisplayID: NSWindow] = [:]
+    private var pendingKeyboardDelta = 0.0
+    private var keyboardAdjustmentTask: Task<Void, Never>?
 
     var averageBrightness: Double {
         let controllable = displays.filter(\.isControllable)
@@ -67,12 +70,14 @@ final class BrightnessManager: ObservableObject {
 
     init() {
         refreshDisplays()
-        hotkeysEnabled = HotkeyManager.shared.register { [weak self] isUp in
+        let hotkeyStatus = HotkeyManager.shared.register { [weak self] isUp in
             Task { @MainActor in
                 guard let self else { return }
-                self.adjustAllBrightness(by: isUp ? self.hotkeyStep : -self.hotkeyStep)
+                self.queueKeyboardAdjustment(isUp: isUp)
             }
         }
+        optionHotkeysEnabled = hotkeyStatus.optionHotkeys
+        brightnessKeyMode = hotkeyStatus.brightnessKeyMode
     }
 
     func refreshDisplays() {
@@ -88,7 +93,7 @@ final class BrightnessManager: ObservableObject {
 
         let activeDisplayIDs = Set(displayIDs.prefix(Int(displayCount)))
         for staleID in Array(dimmingWindows.keys) where !activeDisplayIDs.contains(staleID) {
-            removeSoftwareDimming(for: staleID)
+            closeSoftwareDimming(for: staleID)
         }
 
         var nextDisplays: [DisplayInfo] = []
@@ -113,7 +118,7 @@ final class BrightnessManager: ObservableObject {
                     brightness: clampedBrightness,
                     controlKind: current.kind,
                     lastWriteFailed: false,
-                    isSoftwareDimmed: dimmingWindows[displayID] != nil,
+                    isSoftwareDimmed: dimmingWindows[displayID]?.isVisible == true,
                     maxNits: maxNits,
                     luminanceFactor: luminanceFactor(forRequestedBrightness: clampedBrightness)
                 )
@@ -141,6 +146,20 @@ final class BrightnessManager: ObservableObject {
     func adjustAllBrightness(by delta: Double) {
         for display in displays where display.isControllable {
             setBrightness(for: display.id, to: display.brightness + delta)
+        }
+    }
+
+    private func queueKeyboardAdjustment(isUp: Bool) {
+        pendingKeyboardDelta += isUp ? hotkeyStep : -hotkeyStep
+
+        guard keyboardAdjustmentTask == nil else { return }
+
+        keyboardAdjustmentTask = Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 25_000_000)
+            let delta = pendingKeyboardDelta
+            pendingKeyboardDelta = 0
+            keyboardAdjustmentTask = nil
+            adjustAllBrightness(by: delta)
         }
     }
 
@@ -240,7 +259,7 @@ final class BrightnessManager: ObservableObject {
 
     private func setSoftwareDimming(for displayID: CGDirectDisplayID, opacity: Double) {
         guard opacity > 0.001 else {
-            removeSoftwareDimming(for: displayID)
+            hideSoftwareDimming(for: displayID)
             return
         }
 
@@ -249,29 +268,42 @@ final class BrightnessManager: ObservableObject {
         if let window = dimmingWindows[displayID] {
             window.setFrame(screen.frame, display: true)
             window.alphaValue = CGFloat(opacity)
-            window.orderFrontRegardless()
+            if !window.isVisible {
+                window.orderFrontRegardless()
+            }
             return
         }
 
-        let window = NSWindow(
+        let window = DimmingWindow(
             contentRect: screen.frame,
-            styleMask: .borderless,
+            styleMask: [.borderless, .nonactivatingPanel],
             backing: .buffered,
             defer: false,
             screen: screen
         )
         window.backgroundColor = .black
         window.alphaValue = CGFloat(opacity)
+        window.animationBehavior = .none
+        window.hasShadow = false
+        window.hidesOnDeactivate = false
         window.isOpaque = false
         window.ignoresMouseEvents = true
         window.level = .screenSaver
-        window.collectionBehavior = [.canJoinAllSpaces, .stationary, .ignoresCycle]
+        window.collectionBehavior = [.canJoinAllSpaces, .stationary, .ignoresCycle, .fullScreenAuxiliary]
         window.orderFrontRegardless()
 
         dimmingWindows[displayID] = window
     }
 
-    private func removeSoftwareDimming(for displayID: CGDirectDisplayID) {
+    private func hideSoftwareDimming(for displayID: CGDirectDisplayID) {
+        guard let window = dimmingWindows[displayID] else { return }
+
+        window.alphaValue = 0
+        window.orderOut(nil)
+    }
+
+    private func closeSoftwareDimming(for displayID: CGDirectDisplayID) {
+        dimmingWindows[displayID]?.orderOut(nil)
         dimmingWindows[displayID]?.close()
         dimmingWindows.removeValue(forKey: displayID)
     }
@@ -592,4 +624,9 @@ private extension NSScreen {
             return number.uint32Value == displayID
         }
     }
+}
+
+private final class DimmingWindow: NSPanel {
+    override var canBecomeKey: Bool { false }
+    override var canBecomeMain: Bool { false }
 }

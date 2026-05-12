@@ -49,3 +49,7 @@ spec sheet for a more useful estimate.
 
 Native brightness key interception may require enabling BrightBar in macOS
 Privacy & Security settings for Accessibility or Input Monitoring.
+If the footer shows "Soleil observe", BrightBar can see the key press but cannot
+consume the system event; macOS may still change the built-in display in
+parallel. Granting the permission lets BrightBar show "Soleil actif" and handle
+the key coherently.

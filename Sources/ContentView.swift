@@ -60,9 +60,9 @@ struct ContentView: View {
 
     private var footer: some View {
         HStack(spacing: 10) {
-            Label("Soleil / Opt+fleches", systemImage: manager.hotkeysEnabled ? "keyboard" : "keyboard.badge.ellipsis")
+            Label(keyboardStatusText, systemImage: keyboardStatusIcon)
                 .font(.caption)
-                .foregroundStyle(manager.hotkeysEnabled ? Color.secondary : Color.orange)
+                .foregroundStyle(keyboardStatusColor)
 
             Spacer()
 
@@ -77,6 +77,38 @@ struct ContentView: View {
             }
             .buttonStyle(.borderless)
             .font(.caption)
+        }
+    }
+
+    private var keyboardStatusText: String {
+        switch (manager.brightnessKeyMode, manager.optionHotkeysEnabled) {
+        case (.intercepting, true):
+            "Soleil / Opt+fleches"
+        case (.intercepting, false):
+            "Soleil actif"
+        case (.observing, true):
+            "Soleil observe / Opt"
+        case (.observing, false):
+            "Soleil observe"
+        case (.disabled, true):
+            "Opt+fleches actif"
+        case (.disabled, false):
+            "Clavier non actif"
+        }
+    }
+
+    private var keyboardStatusIcon: String {
+        manager.brightnessKeyMode != .disabled || manager.optionHotkeysEnabled ? "keyboard" : "keyboard.badge.ellipsis"
+    }
+
+    private var keyboardStatusColor: Color {
+        switch manager.brightnessKeyMode {
+        case .intercepting:
+            .secondary
+        case .observing:
+            .orange
+        case .disabled:
+            manager.optionHotkeysEnabled ? .secondary : .orange
         }
     }
 }
