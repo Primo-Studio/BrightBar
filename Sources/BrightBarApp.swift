@@ -1,3 +1,4 @@
+import ApplicationServices
 import Carbon.HIToolbox
 import IOKit.hidsystem
 import SwiftUI
@@ -160,6 +161,13 @@ fileprivate final class BrightnessKeyController {
     }
 
     private func startInterceptingTap() -> Bool {
+        let trustOptions = [
+            kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true
+        ] as CFDictionary
+        guard AXIsProcessTrustedWithOptions(trustOptions) else {
+            return false
+        }
+
         let systemDefinedEventType = CGEventType(rawValue: 14)!
         let mask = CGEventMask(1 << systemDefinedEventType.rawValue)
         let context = Unmanaged.passUnretained(self).toOpaque()

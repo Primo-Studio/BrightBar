@@ -63,6 +63,7 @@ struct ContentView: View {
             Label(keyboardStatusText, systemImage: keyboardStatusIcon)
                 .font(.caption)
                 .foregroundStyle(keyboardStatusColor)
+                .help(keyboardStatusHelp)
 
             Spacer()
 
@@ -111,6 +112,19 @@ struct ContentView: View {
             manager.optionHotkeysEnabled ? .secondary : .orange
         }
     }
+
+    private var keyboardStatusHelp: String {
+        switch manager.brightnessKeyMode {
+        case .intercepting:
+            "BrightBar intercepte F1/F2 et controle les ecrans."
+        case .observing:
+            "BrightBar voit F1/F2 mais macOS garde aussi la touche. Autorise BrightBar dans Reglages Systeme > Confidentialite et securite > Accessibilite."
+        case .disabled:
+            manager.optionHotkeysEnabled
+                ? "Utilise Option + fleche haut/bas. Autorise BrightBar dans Accessibilite pour F1/F2."
+                : "Autorise BrightBar dans Reglages Systeme > Confidentialite et securite > Accessibilite."
+        }
+    }
 }
 
 private struct GlobalBrightnessView: View {
@@ -148,6 +162,13 @@ private struct GlobalBrightnessView: View {
                     .font(.caption2)
                     .foregroundStyle(.secondary)
             }
+
+            if manager.hasSoftwareOnlyDisplays {
+                Label("Les ecrans en Logiciel dimment seulement: pas de boost hardware.", systemImage: "info.circle")
+                    .font(.caption2)
+                    .foregroundStyle(.blue)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
         }
     }
 }
@@ -183,7 +204,7 @@ private struct DisplaySliderView: View {
 
                 VStack(alignment: .trailing, spacing: 1) {
                     Text("\(Int((sliderValue * 100).rounded()))%")
-                    Text("~\(display.estimatedNits) nits")
+                    Text(nitsText)
                 }
                     .font(.caption.monospacedDigit())
                     .foregroundStyle(.secondary)
@@ -214,7 +235,7 @@ private struct DisplaySliderView: View {
             }
 
             if display.controlKind == .software {
-                Label("DDC indisponible: dimming logiciel uniquement.", systemImage: "info.circle")
+                Label("DDC indisponible: BrightBar peut dimmer, pas booster le hardware.", systemImage: "info.circle")
                     .font(.caption2)
                     .foregroundStyle(.blue)
                     .fixedSize(horizontal: false, vertical: true)
@@ -250,6 +271,28 @@ private struct DisplaySliderView: View {
         case .unsupported:
             .orange
         }
+    }
+
+    private var nitsText: String {
+        let estimate = estimatedNits(for: sliderValue)
+        return display.controlKind == .software ? "<=\(estimate) nits" : "~\(estimate) nits"
+    }
+
+    private func estimatedNits(for brightness: Double) -> Int {
+        let factor: Double
+
+        if display.controlKind == .software {
+            let opacity = min(max((1 - brightness) * 0.88, 0), 0.88)
+            factor = min(max(1 - opacity, 0), 1)
+        } else if brightness < 0.2 {
+            let progress = 1 - (brightness / 0.2)
+            let opacity = min(max(progress * 0.88, 0), 0.88)
+            factor = min(max(0.2 * (1 - opacity), 0), 1)
+        } else {
+            factor = brightness
+        }
+
+        return Int((display.maxNits * factor).rounded())
     }
 }
 

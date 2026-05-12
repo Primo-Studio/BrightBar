@@ -14,6 +14,11 @@
 - Native brightness key handling can be either intercepted or only observed.
   Observed mode means macOS may also process the key, so BrightBar surfaces that
   distinction in the footer.
+- The global slider could look inconsistent because nested mutations inside the
+  `@Published` display array did not always force SwiftUI to refresh each child
+  slider/nits label. Display updates now publish a replaced array.
+- Nits shown for software-only displays are upper-bound estimates. Without DDC,
+  BrightBar cannot know or raise the monitor's real hardware brightness.
 
 ## UX Personas
 
@@ -32,6 +37,11 @@
 - Software fallback mode instead of `Non pris en charge`.
 - Stable overlay window lifecycle for sub-zero dimming.
 - Clear keyboard status: active, observed, or fallback shortcut only.
+- Accessibility permission prompt for F1/F2 interception.
+- Re-published display state after every brightness and max-nits change.
+- Per-display nits are calculated from the live slider value, with `<=` for
+  software-only displays.
+- Global warning when at least one display is limited to software dimming.
 - Project run script for repeatable build and launch.
 
 ## Next Improvements

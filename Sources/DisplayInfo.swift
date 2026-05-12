@@ -23,12 +23,10 @@ struct DisplayInfo: Identifiable, Hashable {
     var lastWriteFailed: Bool
     var isSoftwareDimmed: Bool
     var maxNits: Double
-    var luminanceFactor: Double
 
     var maxBrightness: Double { 1.0 }
     var minBrightness: Double { 0.0 }
     var isControllable: Bool { controlKind.isControllable }
-    var estimatedNits: Int { Int((maxNits * luminanceFactor).rounded()) }
 
     /// Human-readable brightness percentage
     var brightnessPercent: Int {

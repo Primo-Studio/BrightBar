@@ -55,6 +55,10 @@ final class BrightnessManager: ObservableObject {
         Int((averageBrightness * 100).rounded())
     }
 
+    var hasSoftwareOnlyDisplays: Bool {
+        displays.contains { $0.controlKind == .software }
+    }
+
     var statusSummary: String {
         let controllable = displays.filter(\.isControllable).count
         let total = displays.count
@@ -122,8 +126,7 @@ final class BrightnessManager: ObservableObject {
                     controlKind: current.kind,
                     lastWriteFailed: false,
                     isSoftwareDimmed: dimmingWindows[displayID]?.isVisible == true,
-                    maxNits: maxNits,
-                    luminanceFactor: luminanceFactor(forRequestedBrightness: clampedBrightness, controlKind: current.kind)
+                    maxNits: maxNits
                 )
             )
 
@@ -170,8 +173,10 @@ final class BrightnessManager: ObservableObject {
         guard let index = displays.firstIndex(where: { $0.id == displayID }) else { return }
 
         let clamped = min(max(value, 80), 2_000)
-        displays[index].maxNits = clamped
-        saveMaxNits(clamped, for: displays[index].persistentID)
+        var updatedDisplays = displays
+        updatedDisplays[index].maxNits = clamped
+        displays = updatedDisplays
+        saveMaxNits(clamped, for: updatedDisplays[index].persistentID)
     }
 
     func setBrightness(for displayID: CGDirectDisplayID, to value: Double) {
@@ -197,18 +202,19 @@ final class BrightnessManager: ObservableObject {
             success = false
         }
 
-        displays[index].brightness = clamped
-        displays[index].lastWriteFailed = !success
-        displays[index].luminanceFactor = luminanceFactor(forRequestedBrightness: clamped, controlKind: display.controlKind)
-
         if success {
             setSoftwareDimming(for: displayID, opacity: dimmingOpacity)
-            displays[index].isSoftwareDimmed = dimmingOpacity > 0
             saveBrightness(clamped, for: display.persistentID)
             lastErrorMessage = nil
         } else {
             lastErrorMessage = "Impossible de regler \(display.name)."
         }
+
+        var updatedDisplays = displays
+        updatedDisplays[index].brightness = clamped
+        updatedDisplays[index].lastWriteFailed = !success
+        updatedDisplays[index].isSoftwareDimmed = success && dimmingOpacity > 0
+        displays = updatedDisplays
     }
 
     private func readBrightness(for displayID: CGDirectDisplayID, isBuiltIn: Bool) -> (value: Double?, kind: BrightnessControlKind) {
@@ -270,17 +276,6 @@ final class BrightnessManager: ObservableObject {
     private func softwareOnlyDimOpacity(forRequestedBrightness value: Double) -> Double {
         let progress = 1 - value
         return min(max(progress * maxSoftwareDimOpacity, 0), maxSoftwareDimOpacity)
-    }
-
-    private func luminanceFactor(forRequestedBrightness value: Double, controlKind: BrightnessControlKind) -> Double {
-        if controlKind == .software {
-            let opacity = softwareOnlyDimOpacity(forRequestedBrightness: value)
-            return min(max(1 - opacity, 0), 1)
-        }
-
-        let hardwareValue = hardwareBrightness(forRequestedBrightness: value)
-        let opacity = softwareDimOpacity(forRequestedBrightness: value)
-        return min(max(hardwareValue * (1 - opacity), 0), 1)
     }
 
     private func setSoftwareDimming(for displayID: CGDirectDisplayID, opacity: Double) {
