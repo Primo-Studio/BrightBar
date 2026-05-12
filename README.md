@@ -25,6 +25,12 @@ subscriptions, profiles, scheduling, or extra automation.
 swift build
 ```
 
+## Test
+
+```sh
+swift test
+```
+
 ## Run
 
 ```sh
@@ -38,6 +44,9 @@ swift build
 ```
 
 The bundle is written to `dist/BrightBar.app`.
+The packaging script signs it ad-hoc with the stable bundle identifier
+`studio.primo.BrightBar`, which keeps macOS permissions tied to the app bundle
+instead of the raw executable name.
 
 ## Notes
 

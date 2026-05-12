@@ -21,5 +21,9 @@ let package = Package(
                 .linkedFramework("CoreDisplay"),
             ]
         ),
+        .testTarget(
+            name: "BrightBarTests",
+            dependencies: ["BrightBar"]
+        ),
     ]
 )

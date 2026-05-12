@@ -47,4 +47,6 @@ cat > "$CONTENTS_DIR/Info.plist" <<PLIST
 </plist>
 PLIST
 
+codesign --force --deep --sign - "$APP_DIR" >/dev/null 2>&1
+
 echo "$APP_DIR"

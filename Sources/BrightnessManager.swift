@@ -37,8 +37,6 @@ final class BrightnessManager: ObservableObject {
     private let prefsKey = "BrightBar.DisplayBrightness.v2"
     private let nitsPrefsKey = "BrightBar.DisplayMaxNits.v1"
     private let hotkeyStep = 0.05
-    private let hardwareDimmingFloor = 0.2
-    private let maxSoftwareDimOpacity = 0.88
     private var dimmingWindows: [CGDirectDisplayID: NSWindow] = [:]
     private var pendingKeyboardDelta = 0.0
     private var keyboardAdjustmentTask: Task<Void, Never>?
@@ -114,7 +112,7 @@ final class BrightnessManager: ObservableObject {
             let current = readBrightness(for: displayID, isBuiltIn: isBuiltIn)
             let brightness = loadedBrightness ?? current.value ?? 0.5
             let maxNits = loadMaxNits(for: persistentID) ?? defaultMaxNits(isBuiltIn: isBuiltIn)
-            let clampedBrightness = min(max(brightness, 0), 1)
+            let clampedBrightness = BrightnessMath.clampedBrightness(brightness)
 
             nextDisplays.append(
                 DisplayInfo(
@@ -172,7 +170,7 @@ final class BrightnessManager: ObservableObject {
     func setMaxNits(for displayID: CGDirectDisplayID, to value: Double) {
         guard let index = displays.firstIndex(where: { $0.id == displayID }) else { return }
 
-        let clamped = min(max(value, 80), 2_000)
+        let clamped = BrightnessMath.clampedMaxNits(value)
         var updatedDisplays = displays
         updatedDisplays[index].maxNits = clamped
         displays = updatedDisplays
@@ -183,12 +181,12 @@ final class BrightnessManager: ObservableObject {
         guard let index = displays.firstIndex(where: { $0.id == displayID }) else { return }
         guard displays[index].isControllable else { return }
 
-        let clamped = min(max(value, displays[index].minBrightness), displays[index].maxBrightness)
+        let clamped = BrightnessMath.clampedBrightness(value)
         let display = displays[index]
-        let hardwareValue = hardwareBrightness(forRequestedBrightness: clamped)
+        let hardwareValue = BrightnessMath.hardwareBrightness(forRequestedBrightness: clamped)
         let dimmingOpacity = display.controlKind == .software
-            ? softwareOnlyDimOpacity(forRequestedBrightness: clamped)
-            : softwareDimOpacity(forRequestedBrightness: clamped)
+            ? BrightnessMath.softwareOnlyOpacity(forRequestedBrightness: clamped)
+            : BrightnessMath.hardwareSubZeroOpacity(forRequestedBrightness: clamped)
         let success: Bool
 
         switch display.controlKind {
@@ -211,7 +209,7 @@ final class BrightnessManager: ObservableObject {
         }
 
         var updatedDisplays = displays
-        updatedDisplays[index].brightness = clamped
+        updatedDisplays[index].brightness = success ? clamped : display.brightness
         updatedDisplays[index].lastWriteFailed = !success
         updatedDisplays[index].isSoftwareDimmed = success && dimmingOpacity > 0
         displays = updatedDisplays
@@ -260,22 +258,6 @@ final class BrightnessManager: ObservableObject {
             return AppleSiliconDDC.write(service: service.service, command: ddcBrightnessCommand, value: ddcValue)
         }
         return ddcWrite(displayID: displayID, command: ddcBrightnessCommand, value: ddcValue)
-    }
-
-    private func hardwareBrightness(forRequestedBrightness value: Double) -> Double {
-        value <= hardwareDimmingFloor ? hardwareDimmingFloor : value
-    }
-
-    private func softwareDimOpacity(forRequestedBrightness value: Double) -> Double {
-        guard value < hardwareDimmingFloor else { return 0 }
-
-        let progress = 1 - (value / hardwareDimmingFloor)
-        return min(max(progress * maxSoftwareDimOpacity, 0), maxSoftwareDimOpacity)
-    }
-
-    private func softwareOnlyDimOpacity(forRequestedBrightness value: Double) -> Double {
-        let progress = 1 - value
-        return min(max(progress * maxSoftwareDimOpacity, 0), maxSoftwareDimOpacity)
     }
 
     private func setSoftwareDimming(for displayID: CGDirectDisplayID, opacity: Double) {

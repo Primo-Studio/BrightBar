@@ -19,6 +19,11 @@
   slider/nits label. Display updates now publish a replaced array.
 - Nits shown for software-only displays are upper-bound estimates. Without DDC,
   BrightBar cannot know or raise the monitor's real hardware brightness.
+- The per-display slider used local SwiftUI state. That could leave labels such
+  as `Sub-zero actif` visible after global changes. Sliders now bind directly to
+  the manager state.
+- The packaged app was not signed after writing `Info.plist`, so macOS reported
+  the identifier as `BrightBar` instead of `studio.primo.BrightBar`.
 
 ## UX Personas
 
@@ -42,7 +47,23 @@
 - Per-display nits are calculated from the live slider value, with `<=` for
   software-only displays.
 - Global warning when at least one display is limited to software dimming.
+- Dedicated brightness math helpers with unit tests for clamp, sub-zero, dimming
+  opacity, and nit estimates.
+- Ad-hoc bundle signing during packaging.
 - Project run script for repeatable build and launch.
+
+## Verification
+
+- `swift test`: 6 tests, 0 failures.
+- `swift build`: passed.
+- `./Scripts/package_app.sh`: passed.
+- `codesign --verify --deep --strict dist/BrightBar.app`: passed.
+- `./script/build_and_run.sh --verify`: passed.
+- No BrightBar crash report found in `~/Library/Logs/DiagnosticReports`.
+- `system_profiler` sees both the built-in display and `LG ULTRAWIDE`.
+- `AppleSiliconDDC detect` sees `LG ULTRAWIDE` on `DP -> DP`.
+- `AppleSiliconDDC getvcp 0x10` still fails on the LG, so BrightBar correctly
+  stays in software mode for that monitor on the current connection.
 
 ## Next Improvements
 

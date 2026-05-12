@@ -177,13 +177,6 @@ private struct DisplaySliderView: View {
     let display: DisplayInfo
     @EnvironmentObject private var manager: BrightnessManager
 
-    @State private var sliderValue: Double
-
-    init(display: DisplayInfo) {
-        self.display = display
-        _sliderValue = State(initialValue: display.brightness)
-    }
-
     var body: some View {
         VStack(alignment: .leading, spacing: 7) {
             HStack(spacing: 8) {
@@ -203,7 +196,7 @@ private struct DisplaySliderView: View {
                 Spacer()
 
                 VStack(alignment: .trailing, spacing: 1) {
-                    Text("\(Int((sliderValue * 100).rounded()))%")
+                    Text("\(display.brightnessPercent)%")
                     Text(nitsText)
                 }
                     .font(.caption.monospacedDigit())
@@ -212,14 +205,14 @@ private struct DisplaySliderView: View {
             }
 
             Slider(
-                value: $sliderValue,
+                value: Binding(
+                    get: { display.brightness },
+                    set: { manager.setBrightness(for: display.id, to: $0) }
+                ),
                 in: display.minBrightness...display.maxBrightness,
                 step: 0.01
             )
             .disabled(!display.isControllable)
-            .onChange(of: sliderValue) { _, newValue in
-                manager.setBrightness(for: display.id, to: newValue)
-            }
 
             if display.lastWriteFailed {
                 Label("Echec DDC: active DDC/CI dans le menu de l'ecran.", systemImage: "exclamationmark.triangle.fill")
@@ -228,8 +221,8 @@ private struct DisplaySliderView: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
 
-            if display.isSoftwareDimmed {
-                Label("Sub-zero actif", systemImage: "moon.fill")
+            if let dimmingStatus {
+                Label(dimmingStatus, systemImage: "moon.fill")
                     .font(.caption2)
                     .foregroundStyle(.blue)
             }
@@ -255,11 +248,6 @@ private struct DisplaySliderView: View {
             }
             .help("Pic lumineux theorique de cet ecran, utilise pour estimer les nits.")
         }
-        .onChange(of: display.brightness) { _, newValue in
-            if abs(sliderValue - newValue) > 0.001 {
-                sliderValue = newValue
-            }
-        }
     }
 
     private var statusColor: Color {
@@ -274,25 +262,17 @@ private struct DisplaySliderView: View {
     }
 
     private var nitsText: String {
-        let estimate = estimatedNits(for: sliderValue)
+        let estimate = BrightnessMath.estimatedNits(
+            maxNits: display.maxNits,
+            brightness: display.brightness,
+            controlKind: display.controlKind
+        )
         return display.controlKind == .software ? "<=\(estimate) nits" : "~\(estimate) nits"
     }
 
-    private func estimatedNits(for brightness: Double) -> Int {
-        let factor: Double
-
-        if display.controlKind == .software {
-            let opacity = min(max((1 - brightness) * 0.88, 0), 0.88)
-            factor = min(max(1 - opacity, 0), 1)
-        } else if brightness < 0.2 {
-            let progress = 1 - (brightness / 0.2)
-            let opacity = min(max(progress * 0.88, 0), 0.88)
-            factor = min(max(0.2 * (1 - opacity), 0), 1)
-        } else {
-            factor = brightness
-        }
-
-        return Int((display.maxNits * factor).rounded())
+    private var dimmingStatus: String? {
+        guard display.isSoftwareDimmed else { return nil }
+        return display.controlKind == .software ? "Dimming logiciel actif" : "Sub-zero actif"
     }
 }
 
