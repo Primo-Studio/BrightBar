@@ -1,4 +1,5 @@
 import AppKit
+import AppleSiliconDDC
 import CoreGraphics
 import Foundation
 import IOKit
@@ -41,6 +42,7 @@ final class BrightnessManager: ObservableObject {
     private var dimmingWindows: [CGDirectDisplayID: NSWindow] = [:]
     private var pendingKeyboardDelta = 0.0
     private var keyboardAdjustmentTask: Task<Void, Never>?
+    private var appleSiliconDDCServices: [CGDirectDisplayID: AppleSiliconDDC.IOregService] = [:]
 
     var averageBrightness: Double {
         let controllable = displays.filter(\.isControllable)
@@ -98,6 +100,7 @@ final class BrightnessManager: ObservableObject {
 
         var nextDisplays: [DisplayInfo] = []
         var savedValuesToApply: [(CGDirectDisplayID, Double)] = []
+        appleSiliconDDCServices = Self.appleSiliconDDCServices(for: Array(displayIDs.prefix(Int(displayCount))))
 
         for displayID in displayIDs.prefix(Int(displayCount)) {
             let isBuiltIn = CGDisplayIsBuiltin(displayID) != 0
@@ -120,7 +123,7 @@ final class BrightnessManager: ObservableObject {
                     lastWriteFailed: false,
                     isSoftwareDimmed: dimmingWindows[displayID]?.isVisible == true,
                     maxNits: maxNits,
-                    luminanceFactor: luminanceFactor(forRequestedBrightness: clampedBrightness)
+                    luminanceFactor: luminanceFactor(forRequestedBrightness: clampedBrightness, controlKind: current.kind)
                 )
             )
 
@@ -178,7 +181,9 @@ final class BrightnessManager: ObservableObject {
         let clamped = min(max(value, displays[index].minBrightness), displays[index].maxBrightness)
         let display = displays[index]
         let hardwareValue = hardwareBrightness(forRequestedBrightness: clamped)
-        let dimmingOpacity = softwareDimOpacity(forRequestedBrightness: clamped)
+        let dimmingOpacity = display.controlKind == .software
+            ? softwareOnlyDimOpacity(forRequestedBrightness: clamped)
+            : softwareDimOpacity(forRequestedBrightness: clamped)
         let success: Bool
 
         switch display.controlKind {
@@ -186,13 +191,15 @@ final class BrightnessManager: ObservableObject {
             success = setBuiltInBrightness(displayID: displayID, value: hardwareValue)
         case .ddc:
             success = setExternalBrightness(displayID: displayID, value: hardwareValue)
+        case .software:
+            success = true
         case .unsupported:
             success = false
         }
 
         displays[index].brightness = clamped
         displays[index].lastWriteFailed = !success
-        displays[index].luminanceFactor = luminanceFactor(forRequestedBrightness: clamped)
+        displays[index].luminanceFactor = luminanceFactor(forRequestedBrightness: clamped, controlKind: display.controlKind)
 
         if success {
             setSoftwareDimming(for: displayID, opacity: dimmingOpacity)
@@ -207,7 +214,7 @@ final class BrightnessManager: ObservableObject {
     private func readBrightness(for displayID: CGDirectDisplayID, isBuiltIn: Bool) -> (value: Double?, kind: BrightnessControlKind) {
         if isBuiltIn {
             guard let getBrightness = displayServicesGetBrightness else {
-                return (nil, .unsupported)
+                return (nil, .software)
             }
 
             var brightness: Float = 0.5
@@ -218,8 +225,14 @@ final class BrightnessManager: ObservableObject {
             return (Double(brightness), .native)
         }
 
+        if let service = appleSiliconDDCServices[displayID],
+           let value = AppleSiliconDDC.read(service: service.service, command: ddcBrightnessCommand) {
+            let maxValue = max(Double(value.max), 1)
+            return (Double(value.current) / maxValue, .ddc)
+        }
+
         guard let framebuffer = Self.framebufferPort(for: displayID) else {
-            return (nil, .unsupported)
+            return (nil, .software)
         }
         IOObjectRelease(framebuffer)
 
@@ -227,7 +240,7 @@ final class BrightnessManager: ObservableObject {
             return (Double(value) / 100.0, .ddc)
         }
 
-        return (nil, .ddc)
+        return (nil, .software)
     }
 
     private func setBuiltInBrightness(displayID: CGDirectDisplayID, value: Double) -> Bool {
@@ -237,6 +250,9 @@ final class BrightnessManager: ObservableObject {
 
     private func setExternalBrightness(displayID: CGDirectDisplayID, value: Double) -> Bool {
         let ddcValue = UInt16(min(max(value * 100, 0), 100))
+        if let service = appleSiliconDDCServices[displayID] {
+            return AppleSiliconDDC.write(service: service.service, command: ddcBrightnessCommand, value: ddcValue)
+        }
         return ddcWrite(displayID: displayID, command: ddcBrightnessCommand, value: ddcValue)
     }
 
@@ -251,7 +267,17 @@ final class BrightnessManager: ObservableObject {
         return min(max(progress * maxSoftwareDimOpacity, 0), maxSoftwareDimOpacity)
     }
 
-    private func luminanceFactor(forRequestedBrightness value: Double) -> Double {
+    private func softwareOnlyDimOpacity(forRequestedBrightness value: Double) -> Double {
+        let progress = 1 - value
+        return min(max(progress * maxSoftwareDimOpacity, 0), maxSoftwareDimOpacity)
+    }
+
+    private func luminanceFactor(forRequestedBrightness value: Double, controlKind: BrightnessControlKind) -> Double {
+        if controlKind == .software {
+            let opacity = softwareOnlyDimOpacity(forRequestedBrightness: value)
+            return min(max(1 - opacity, 0), 1)
+        }
+
         let hardwareValue = hardwareBrightness(forRequestedBrightness: value)
         let opacity = softwareDimOpacity(forRequestedBrightness: value)
         return min(max(hardwareValue * (1 - opacity), 0), 1)
@@ -364,6 +390,47 @@ private extension BrightnessManager {
         }
 
         return String(displayID)
+    }
+
+    static func appleSiliconDDCServices(for displayIDs: [CGDirectDisplayID]) -> [CGDirectDisplayID: AppleSiliconDDC.IOregService] {
+        let services = AppleSiliconDDC.getIoregServicesForMatching()
+            .filter { $0.service != nil && !$0.productName.isEmpty }
+
+        guard !services.isEmpty else { return [:] }
+
+        var matches: [CGDirectDisplayID: AppleSiliconDDC.IOregService] = [:]
+        var usedServiceLocations = Set<Int>()
+
+        for displayID in displayIDs where CGDisplayIsBuiltin(displayID) == 0 {
+            let displayName = Self.displayName(for: displayID).trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            let displaySerial = Int64(CGDisplaySerialNumber(displayID))
+
+            let scored = services
+                .filter { !usedServiceLocations.contains($0.serviceLocation) }
+                .map { service -> (service: AppleSiliconDDC.IOregService, score: Int) in
+                    var score = 0
+                    if service.productName.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() == displayName {
+                        score += 100
+                    }
+                    if service.serialNumber != 0 && service.serialNumber == displaySerial {
+                        score += 25
+                    }
+                    if service.location == "External" {
+                        score += 5
+                    }
+                    if service.transportUpstream != "" || service.transportDownstream != "" {
+                        score += 2
+                    }
+                    return (service, score)
+                }
+                .sorted { $0.score > $1.score }
+
+            guard let best = scored.first, best.score > 0 else { continue }
+            matches[displayID] = best.service
+            usedServiceLocations.insert(best.service.serviceLocation)
+        }
+
+        return matches
     }
 
     static func displayInfoDictionary(for displayID: CGDirectDisplayID) -> [String: Any]? {

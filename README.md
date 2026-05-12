@@ -10,6 +10,8 @@ subscriptions, profiles, scheduling, or extra automation.
 - Global brightness slider for all controllable displays.
 - Per-display sliders.
 - External display control through DDC/CI.
+- Apple Silicon DDC probing through `AppleSiliconDDC`, with software fallback
+  when a display or adapter refuses DDC commands.
 - Built-in display control through macOS DisplayServices.
 - Sub-zero dimming below 20% using a per-display software overlay.
 - Presets: 5%, 20%, 50%, 100%.
@@ -26,7 +28,7 @@ swift build
 ## Run
 
 ```sh
-swift run BrightBar
+./script/build_and_run.sh
 ```
 
 ## Create the app bundle
@@ -42,6 +44,10 @@ The bundle is written to `dist/BrightBar.app`.
 Most external monitors need DDC/CI enabled in the monitor's on-screen menu.
 Some USB-C docks block DDC/CI commands; direct USB-C/DisplayPort connections are
 usually more reliable.
+When BrightBar shows `Logiciel`, the display was detected but DDC write/read did
+not work. In that mode BrightBar can dim visually with an overlay, but it cannot
+raise the monitor's hardware brightness above the level currently set in the
+monitor OSD.
 
 Nit values are estimates. macOS and DDC/CI expose brightness levels, not a
 calibrated luminance reading, so set each display's max-nits value to match its

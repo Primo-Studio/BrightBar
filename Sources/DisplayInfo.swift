@@ -4,6 +4,7 @@ import CoreGraphics
 enum BrightnessControlKind: String {
     case native = "macOS"
     case ddc = "DDC/CI"
+    case software = "Logiciel"
     case unsupported = "Non pris en charge"
 
     var isControllable: Bool {

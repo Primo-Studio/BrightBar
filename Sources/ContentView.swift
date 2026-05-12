@@ -213,6 +213,13 @@ private struct DisplaySliderView: View {
                     .foregroundStyle(.blue)
             }
 
+            if display.controlKind == .software {
+                Label("DDC indisponible: dimming logiciel uniquement.", systemImage: "info.circle")
+                    .font(.caption2)
+                    .foregroundStyle(.blue)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
             Stepper(
                 value: Binding(
                     get: { display.maxNits },
@@ -238,6 +245,8 @@ private struct DisplaySliderView: View {
         switch display.controlKind {
         case .native, .ddc:
             display.lastWriteFailed ? .orange : .secondary
+        case .software:
+            .blue
         case .unsupported:
             .orange
         }
