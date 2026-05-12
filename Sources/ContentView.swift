@@ -1,3 +1,4 @@
+import CoreGraphics
 import SwiftUI
 
 struct ContentView: View {
@@ -17,7 +18,7 @@ struct ContentView: View {
 
                 VStack(spacing: 12) {
                     ForEach(manager.displays) { display in
-                        DisplaySliderView(display: display)
+                        DisplaySliderView(displayID: display.id)
                     }
                 }
 
@@ -184,83 +185,93 @@ private struct GlobalBrightnessView: View {
 }
 
 private struct DisplaySliderView: View {
-    let display: DisplayInfo
+    let displayID: CGDirectDisplayID
     @EnvironmentObject private var manager: BrightnessManager
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 7) {
-            HStack(spacing: 8) {
-                Image(systemName: display.isBuiltIn ? "laptopcomputer" : "display")
-                    .foregroundStyle(.secondary)
+        if let display {
+            VStack(alignment: .leading, spacing: 7) {
+                HStack(spacing: 8) {
+                    Image(systemName: display.isBuiltIn ? "laptopcomputer" : "display")
+                        .foregroundStyle(.secondary)
 
-                VStack(alignment: .leading, spacing: 1) {
-                    Text(display.name)
-                        .font(.subheadline)
-                        .lineLimit(1)
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text(display.name)
+                            .font(.subheadline)
+                            .lineLimit(1)
 
-                    Text(display.controlKind.rawValue)
+                        Text(display.controlKind.rawValue)
+                            .font(.caption2)
+                            .foregroundStyle(statusColor(for: display))
+                    }
+
+                    Spacer()
+
+                    VStack(alignment: .trailing, spacing: 1) {
+                        Text("\(display.brightnessPercent)%")
+                        Text(nitsText(for: display))
+                    }
+                        .font(.caption.monospacedDigit())
+                        .foregroundStyle(.secondary)
+                        .frame(width: 74, alignment: .trailing)
+                }
+
+                Slider(
+                    value: Binding(
+                        get: { currentDisplay?.brightness ?? display.brightness },
+                        set: { manager.setBrightness(for: displayID, to: $0) }
+                    ),
+                    in: display.minBrightness...display.maxBrightness,
+                    step: 0.01
+                )
+                .disabled(!display.isControllable)
+
+                if display.lastWriteFailed {
+                    Label("Echec DDC: active DDC/CI dans le menu de l'ecran.", systemImage: "exclamationmark.triangle.fill")
                         .font(.caption2)
-                        .foregroundStyle(statusColor)
+                        .foregroundStyle(.orange)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
 
-                Spacer()
-
-                VStack(alignment: .trailing, spacing: 1) {
-                    Text("\(display.brightnessPercent)%")
-                    Text(nitsText)
+                if let dimmingStatus = dimmingStatus(for: display) {
+                    Label(dimmingStatus, systemImage: "moon.fill")
+                        .font(.caption2)
+                        .foregroundStyle(.blue)
                 }
-                    .font(.caption.monospacedDigit())
-                    .foregroundStyle(.secondary)
-                    .frame(width: 74, alignment: .trailing)
-            }
 
-            Slider(
-                value: Binding(
-                    get: { display.brightness },
-                    set: { manager.setBrightness(for: display.id, to: $0) }
-                ),
-                in: display.minBrightness...display.maxBrightness,
-                step: 0.01
-            )
-            .disabled(!display.isControllable)
+                if display.controlKind == .software {
+                    Label("DDC indisponible: BrightBar peut dimmer, pas booster le hardware.", systemImage: "info.circle")
+                        .font(.caption2)
+                        .foregroundStyle(.blue)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
 
-            if display.lastWriteFailed {
-                Label("Echec DDC: active DDC/CI dans le menu de l'ecran.", systemImage: "exclamationmark.triangle.fill")
-                    .font(.caption2)
-                    .foregroundStyle(.orange)
-                    .fixedSize(horizontal: false, vertical: true)
+                Stepper(
+                    value: Binding(
+                        get: { currentDisplay?.maxNits ?? display.maxNits },
+                        set: { manager.setMaxNits(for: displayID, to: $0) }
+                    ),
+                    in: 80...2_000,
+                    step: 50
+                ) {
+                    Text("Max \(Int(display.maxNits)) nits")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+                .help("Pic lumineux theorique de cet ecran, utilise pour estimer les nits.")
             }
-
-            if let dimmingStatus {
-                Label(dimmingStatus, systemImage: "moon.fill")
-                    .font(.caption2)
-                    .foregroundStyle(.blue)
-            }
-
-            if display.controlKind == .software {
-                Label("DDC indisponible: BrightBar peut dimmer, pas booster le hardware.", systemImage: "info.circle")
-                    .font(.caption2)
-                    .foregroundStyle(.blue)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-
-            Stepper(
-                value: Binding(
-                    get: { display.maxNits },
-                    set: { manager.setMaxNits(for: display.id, to: $0) }
-                ),
-                in: 80...2_000,
-                step: 50
-            ) {
-                Text("Max \(Int(display.maxNits)) nits")
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-            }
-            .help("Pic lumineux theorique de cet ecran, utilise pour estimer les nits.")
         }
     }
 
-    private var statusColor: Color {
+    private var display: DisplayInfo? {
+        currentDisplay
+    }
+
+    private var currentDisplay: DisplayInfo? {
+        manager.displays.first { $0.id == displayID }
+    }
+
+    private func statusColor(for display: DisplayInfo) -> Color {
         switch display.controlKind {
         case .native, .ddc:
             display.lastWriteFailed ? .orange : .secondary
@@ -271,7 +282,7 @@ private struct DisplaySliderView: View {
         }
     }
 
-    private var nitsText: String {
+    private func nitsText(for display: DisplayInfo) -> String {
         let estimate = BrightnessMath.estimatedNits(
             maxNits: display.maxNits,
             brightness: display.brightness,
@@ -280,7 +291,7 @@ private struct DisplaySliderView: View {
         return display.controlKind == .software ? "<=\(estimate) nits" : "~\(estimate) nits"
     }
 
-    private var dimmingStatus: String? {
+    private func dimmingStatus(for display: DisplayInfo) -> String? {
         guard display.isSoftwareDimmed else { return nil }
         return display.controlKind == .software ? "Dimming logiciel actif" : "Sub-zero actif"
     }
