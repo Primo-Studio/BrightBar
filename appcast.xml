@@ -9,7 +9,7 @@
             <sparkle:shortVersionString>0.1.1</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
             <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
-            <enclosure url="https://github.com/Primo-Studio/BrightBar/releases/download/v0.1.1/BrightBar-0.1.1-macOS.zip" length="1197177" type="application/octet-stream" sparkle:edSignature="EuQMms/0ZPctqH10PyWyrd1TpVGxLqTdViwXBGrjBT/b6+oGLKrHi3KJ+/OF4D7x1xm7yKQTlTeBo0mhmrIlAw=="/>
+            <enclosure url="https://github.com/Primo-Studio/BrightBar/releases/download/v0.1.1/BrightBar-0.1.1-macOS.zip" length="1197207" type="application/octet-stream" sparkle:edSignature="KMn+SjtbXpX1o2a/j7RKsX9ZRmN2d0qW99VcF+PcrsKh7suGoq0iRA2wSKYmx9xgG1vRWu2ffjwQ9yFr1Ni+CQ=="/>
         </item>
     </channel>
 </rss>

@@ -54,7 +54,7 @@ cat > "$CONTENTS_DIR/Info.plist" <<PLIST
     <key>SUEnableAutomaticChecks</key>
     <true/>
     <key>SUFeedURL</key>
-    <string>https://raw.githubusercontent.com/Primo-Studio/BrightBar/main/appcast.xml</string>
+    <string>https://github.com/Primo-Studio/BrightBar/releases/latest/download/appcast.xml</string>
     <key>SUPublicEDKey</key>
     <string>jLm0dM43ZCL3cMpwt7/pA8Tc2Xll5mkuvwIycQ2va7s=</string>
     <key>SUScheduledCheckInterval</key>

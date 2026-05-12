@@ -80,8 +80,9 @@ After notarization, upload the ZIP to a GitHub Release. The GitHub CLI is enough
 gh release create v0.1.1 dist/BrightBar-0.1.1-macOS.zip --title "BrightBar 0.1.1" --notes "Signed, notarized, Sparkle-enabled macOS build."
 ```
 
-The app checks the raw GitHub-hosted `appcast.xml` feed at most once per day by
-default, and the footer button can manually trigger "Check for Updates".
+The app checks the `appcast.xml` asset from the latest GitHub Release at most
+once per day by default, and the footer button can manually trigger "Check for
+Updates".
 
 ## Notes
 

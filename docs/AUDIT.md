@@ -54,8 +54,8 @@
   opacity, and nit estimates.
 - Ad-hoc bundle signing during packaging.
 - Developer ID release packaging script for GitHub-downloadable builds.
-- Sparkle updater integration with a signed GitHub appcast, a manual check
-  button, and a 24-hour scheduled check interval.
+- Sparkle updater integration with a signed GitHub Release appcast, a manual
+  check button, and a 24-hour scheduled check interval.
 - Project run script for repeatable build and launch.
 
 ## Verification
