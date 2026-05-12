@@ -84,6 +84,10 @@ The app checks the `appcast.xml` asset from the latest GitHub Release at most
 once per day by default, and the footer button can manually trigger "Check for
 Updates".
 
+Sparkle needs the appcast and ZIP URLs to be reachable without authentication.
+If this repository stays private, manual downloads work for authenticated GitHub
+users, but automatic updates need a public release/feed location.
+
 ## Notes
 
 Most external monitors need DDC/CI enabled in the monitor's on-screen menu.

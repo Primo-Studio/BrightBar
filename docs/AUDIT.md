@@ -27,6 +27,9 @@
 - Sparkle requires `Sparkle.framework` embedded in `Contents/Frameworks` and an
   `@executable_path/../Frameworks` rpath. A first package attempt crashed at
   launch until the rpath was moved into linker settings.
+- GitHub reports `Primo-Studio/BrightBar` as private. Manual downloads work for
+  authenticated users, but Sparkle automatic updates require the appcast and ZIP
+  URLs to be public or otherwise reachable without login.
 
 ## UX Personas
 
@@ -68,6 +71,9 @@
   `Developer ID Application: Primo Studio (4QB44XVHNL)`.
 - `Scripts/generate_appcast.sh`: generates signed `appcast.xml` from the
   notarized release ZIP.
+- GitHub Release `v0.1.1` contains the signed ZIP and appcast assets, but the
+  repository is private, so unauthenticated Sparkle downloads are blocked until
+  the release/feed location is public.
 - `./script/build_and_run.sh --verify`: passed.
 - Idle process sample after Sparkle integration: 0.0% CPU, about 78 MB RSS.
 - Earlier Sparkle packaging attempts produced dyld crash reports before the rpath
