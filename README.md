@@ -18,6 +18,7 @@ subscriptions, profiles, scheduling, or extra automation.
 - Native brightness keys support, plus `Option + Up` and `Option + Down`.
 - Saved brightness per physical display.
 - Estimated nits per display, based on a configurable max-nits value.
+- Signed automatic updates through Sparkle and GitHub Releases.
 
 ## Build
 
@@ -54,7 +55,7 @@ instead of the raw executable name.
 ./Scripts/package_release.sh
 ```
 
-This creates `dist/BrightBar-0.1.0-macOS.zip` signed with:
+This creates `dist/BrightBar-0.1.1-macOS.zip` signed with:
 
 ```text
 Developer ID Application: Primo Studio (4QB44XVHNL)
@@ -67,11 +68,20 @@ xcrun notarytool store-credentials BrightBar-Notary --team-id 4QB44XVHNL --apple
 NOTARY_PROFILE=BrightBar-Notary ./Scripts/package_release.sh --notarize
 ```
 
+Generate the Sparkle appcast after the notarized ZIP is created:
+
+```sh
+./Scripts/generate_appcast.sh
+```
+
 After notarization, upload the ZIP to a GitHub Release. The GitHub CLI is enough:
 
 ```sh
-gh release create v0.1.0 dist/BrightBar-0.1.0-macOS.zip --title "BrightBar 0.1.0" --notes "Signed and notarized macOS build."
+gh release create v0.1.1 dist/BrightBar-0.1.1-macOS.zip --title "BrightBar 0.1.1" --notes "Signed, notarized, Sparkle-enabled macOS build."
 ```
+
+The app checks the raw GitHub-hosted `appcast.xml` feed at most once per day by
+default, and the footer button can manually trigger "Check for Updates".
 
 ## Notes
 

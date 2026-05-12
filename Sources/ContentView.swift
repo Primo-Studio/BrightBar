@@ -2,6 +2,7 @@ import SwiftUI
 
 struct ContentView: View {
     @EnvironmentObject private var manager: BrightnessManager
+    @EnvironmentObject private var updateManager: UpdateManager
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -72,6 +73,15 @@ struct ContentView: View {
                     .foregroundStyle(.orange)
                     .help(message)
             }
+
+            Button {
+                updateManager.checkForUpdates()
+            } label: {
+                Image(systemName: "arrow.down.circle")
+            }
+            .buttonStyle(.borderless)
+            .disabled(!updateManager.canCheckForUpdates)
+            .help("Verifier les mises a jour")
 
             Button("Quitter") {
                 NSApplication.shared.terminate(nil)

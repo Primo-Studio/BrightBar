@@ -6,15 +6,18 @@ let package = Package(
     platforms: [.macOS(.v14)],
     dependencies: [
         .package(url: "https://github.com/waydabber/AppleSiliconDDC.git", revision: "97af3818b9803e51412fb50cac1506db1d73b5bf"),
+        .package(url: "https://github.com/sparkle-project/Sparkle.git", from: "2.9.1"),
     ],
     targets: [
         .executableTarget(
             name: "BrightBar",
             dependencies: [
                 .product(name: "AppleSiliconDDC", package: "AppleSiliconDDC"),
+                .product(name: "Sparkle", package: "Sparkle"),
             ],
             path: "Sources",
             linkerSettings: [
+                .unsafeFlags(["-Xlinker", "-rpath", "-Xlinker", "@executable_path/../Frameworks"]),
                 .linkedFramework("AppKit"),
                 .linkedFramework("IOKit"),
                 .linkedFramework("CoreGraphics"),

@@ -7,11 +7,13 @@ import SwiftUI
 struct BrightBarApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @StateObject private var brightnessManager = BrightnessManager()
+    @StateObject private var updateManager = UpdateManager()
 
     var body: some Scene {
         MenuBarExtra {
             ContentView()
                 .environmentObject(brightnessManager)
+                .environmentObject(updateManager)
         } label: {
             Image(systemName: "sun.max.fill")
         }

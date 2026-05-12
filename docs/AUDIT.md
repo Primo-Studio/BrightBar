@@ -24,6 +24,9 @@
   the manager state.
 - The packaged app was not signed after writing `Info.plist`, so macOS reported
   the identifier as `BrightBar` instead of `studio.primo.BrightBar`.
+- Sparkle requires `Sparkle.framework` embedded in `Contents/Frameworks` and an
+  `@executable_path/../Frameworks` rpath. A first package attempt crashed at
+  launch until the rpath was moved into linker settings.
 
 ## UX Personas
 
@@ -51,6 +54,8 @@
   opacity, and nit estimates.
 - Ad-hoc bundle signing during packaging.
 - Developer ID release packaging script for GitHub-downloadable builds.
+- Sparkle updater integration with a signed GitHub appcast, a manual check
+  button, and a 24-hour scheduled check interval.
 - Project run script for repeatable build and launch.
 
 ## Verification
@@ -61,8 +66,12 @@
 - `codesign --verify --deep --strict dist/BrightBar.app`: passed.
 - `Scripts/package_release.sh`: signs a ZIP with
   `Developer ID Application: Primo Studio (4QB44XVHNL)`.
+- `Scripts/generate_appcast.sh`: generates signed `appcast.xml` from the
+  notarized release ZIP.
 - `./script/build_and_run.sh --verify`: passed.
-- No BrightBar crash report found in `~/Library/Logs/DiagnosticReports`.
+- Idle process sample after Sparkle integration: 0.0% CPU, about 78 MB RSS.
+- Earlier Sparkle packaging attempts produced dyld crash reports before the rpath
+  fix; no new BrightBar crash report appeared after the verified launch.
 - `system_profiler` sees both the built-in display and `LG ULTRAWIDE`.
 - `AppleSiliconDDC detect` sees `LG ULTRAWIDE` on `DP -> DP`.
 - `AppleSiliconDDC getvcp 0x10` still fails on the LG, so BrightBar correctly
@@ -76,5 +85,5 @@
 - Add optional native macOS OSD feedback for F1/F2 changes.
 - Add per-display sync modes: all displays, built-in only, external only.
 - Persist whether a display should prefer DDC or software fallback.
-- Add a GitHub Actions release workflow after notary credentials are stored as
-  encrypted repository secrets.
+- Add a GitHub Actions release workflow after notary and Sparkle signing
+  credentials are stored as encrypted repository secrets.
