@@ -48,6 +48,31 @@ The packaging script signs it ad-hoc with the stable bundle identifier
 `studio.primo.BrightBar`, which keeps macOS permissions tied to the app bundle
 instead of the raw executable name.
 
+## Create a distributable ZIP
+
+```sh
+./Scripts/package_release.sh
+```
+
+This creates `dist/BrightBar-0.1.0-macOS.zip` signed with:
+
+```text
+Developer ID Application: Primo Studio (4QB44XVHNL)
+```
+
+For Gatekeeper-friendly distribution outside this Mac, notarize the ZIP:
+
+```sh
+xcrun notarytool store-credentials BrightBar-Notary --team-id 4QB44XVHNL --apple-id <apple-id>
+NOTARY_PROFILE=BrightBar-Notary ./Scripts/package_release.sh --notarize
+```
+
+After notarization, upload the ZIP to a GitHub Release. The GitHub CLI is enough:
+
+```sh
+gh release create v0.1.0 dist/BrightBar-0.1.0-macOS.zip --title "BrightBar 0.1.0" --notes "Signed and notarized macOS build."
+```
+
 ## Notes
 
 Most external monitors need DDC/CI enabled in the monitor's on-screen menu.

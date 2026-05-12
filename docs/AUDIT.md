@@ -50,6 +50,7 @@
 - Dedicated brightness math helpers with unit tests for clamp, sub-zero, dimming
   opacity, and nit estimates.
 - Ad-hoc bundle signing during packaging.
+- Developer ID release packaging script for GitHub-downloadable builds.
 - Project run script for repeatable build and launch.
 
 ## Verification
@@ -58,6 +59,8 @@
 - `swift build`: passed.
 - `./Scripts/package_app.sh`: passed.
 - `codesign --verify --deep --strict dist/BrightBar.app`: passed.
+- `Scripts/package_release.sh`: signs a ZIP with
+  `Developer ID Application: Primo Studio (4QB44XVHNL)`.
 - `./script/build_and_run.sh --verify`: passed.
 - No BrightBar crash report found in `~/Library/Logs/DiagnosticReports`.
 - `system_profiler` sees both the built-in display and `LG ULTRAWIDE`.
@@ -73,3 +76,5 @@
 - Add optional native macOS OSD feedback for F1/F2 changes.
 - Add per-display sync modes: all displays, built-in only, external only.
 - Persist whether a display should prefer DDC or software fallback.
+- Add a GitHub Actions release workflow after notary credentials are stored as
+  encrypted repository secrets.
