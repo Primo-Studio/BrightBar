@@ -3,4 +3,5 @@
 *.xcodeproj/
 DerivedData/
 dist/
+.codex/
 .DS_Store

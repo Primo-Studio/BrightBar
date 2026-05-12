@@ -1,24 +1,42 @@
 # BrightBar
 
 BrightBar is a lightweight macOS menu bar app for display brightness control.
-It focuses on the useful part of Lunar: fast hardware brightness control without
-subscriptions, profiles, scheduling, or extra automation.
+It focuses on the useful part of Lunar: fast brightness control without
+profiles, schedules, cloud accounts, or subscriptions.
+
+## Download
+
+Download the latest notarized build from GitHub Releases:
+
+https://github.com/Primo-Studio/BrightBar/releases/latest
+
+Unzip `BrightBar-*-macOS.zip`, move `BrightBar.app` to `/Applications`, then
+launch it. macOS may ask for Accessibility permission so BrightBar can intercept
+the brightness keys.
 
 ## Features
 
 - Menu bar only, no Dock icon.
 - Global brightness slider for all controllable displays.
 - Per-display sliders.
-- External display control through DDC/CI.
-- Apple Silicon DDC probing through `AppleSiliconDDC`, with software fallback
-  when a display or adapter refuses DDC commands.
-- Built-in display control through macOS DisplayServices.
-- Sub-zero dimming below 20% using a per-display software overlay.
+- Built-in display control through macOS.
+- External display DDC/CI probing on Apple Silicon.
+- Software dimming fallback when DDC is unavailable.
+- Sub-zero dimming below 20%.
 - Presets: 5%, 20%, 50%, 100%.
 - Native brightness keys support, plus `Option + Up` and `Option + Down`.
-- Saved brightness per physical display.
-- Estimated nits per display, based on a configurable max-nits value.
-- Signed automatic updates through Sparkle and GitHub Releases.
+- Estimated nits per display, based on configurable max-nits values.
+- Sparkle-based automatic updates through GitHub Releases.
+
+## Limitations
+
+External display hardware brightness depends on DDC/CI support. Some monitors,
+inputs, USB-C docks, and adapters block DDC commands. When BrightBar shows
+`Logiciel`, it can dim visually with an overlay but cannot raise the monitor's
+real hardware brightness.
+
+Nit values are estimates. macOS and DDC/CI expose brightness levels, not
+calibrated luminance readings.
 
 ## Build
 
@@ -32,79 +50,48 @@ swift build
 swift test
 ```
 
-## Run
+## Run Locally
 
 ```sh
 ./script/build_and_run.sh
 ```
 
-## Create the app bundle
+## Package
+
+Local app bundle:
 
 ```sh
 ./Scripts/package_app.sh
 ```
 
-The bundle is written to `dist/BrightBar.app`.
-The packaging script signs it ad-hoc with the stable bundle identifier
-`studio.primo.BrightBar`, which keeps macOS permissions tied to the app bundle
-instead of the raw executable name.
-
-## Create a distributable ZIP
+Signed release ZIP:
 
 ```sh
 ./Scripts/package_release.sh
 ```
 
-This creates `dist/BrightBar-0.1.1-macOS.zip` signed with:
-
-```text
-Developer ID Application: Primo Studio (4QB44XVHNL)
-```
-
-For Gatekeeper-friendly distribution outside this Mac, notarize the ZIP:
+Notarized release ZIP:
 
 ```sh
-xcrun notarytool store-credentials BrightBar-Notary --team-id 4QB44XVHNL --apple-id <apple-id>
 NOTARY_PROFILE=BrightBar-Notary ./Scripts/package_release.sh --notarize
 ```
 
-Generate the Sparkle appcast after the notarized ZIP is created:
+Generate the Sparkle appcast after creating the notarized ZIP:
 
 ```sh
 ./Scripts/generate_appcast.sh
 ```
 
-After notarization, upload the ZIP to a GitHub Release. The GitHub CLI is enough:
+## Updates
 
-```sh
-gh release create v0.1.1 dist/BrightBar-0.1.1-macOS.zip --title "BrightBar 0.1.1" --notes "Signed, notarized, Sparkle-enabled macOS build."
-```
+BrightBar checks the `appcast.xml` asset from the latest GitHub Release at most
+once per day. The footer button can manually trigger "Check for Updates".
 
-The app checks the `appcast.xml` asset from the latest GitHub Release at most
-once per day by default, and the footer button can manually trigger "Check for
-Updates".
+## Privacy
 
-Sparkle needs the appcast and ZIP URLs to be reachable without authentication.
-If this repository stays private, manual downloads work for authenticated GitHub
-users, but automatic updates need a public release/feed location.
+BrightBar does not collect analytics, telemetry, crash reports, personal data,
+or display usage data. See [PRIVACY.md](PRIVACY.md).
 
-## Notes
+## License
 
-Most external monitors need DDC/CI enabled in the monitor's on-screen menu.
-Some USB-C docks block DDC/CI commands; direct USB-C/DisplayPort connections are
-usually more reliable.
-When BrightBar shows `Logiciel`, the display was detected but DDC write/read did
-not work. In that mode BrightBar can dim visually with an overlay, but it cannot
-raise the monitor's hardware brightness above the level currently set in the
-monitor OSD.
-
-Nit values are estimates. macOS and DDC/CI expose brightness levels, not a
-calibrated luminance reading, so set each display's max-nits value to match its
-spec sheet for a more useful estimate.
-
-Native brightness key interception may require enabling BrightBar in macOS
-Privacy & Security settings for Accessibility or Input Monitoring.
-If the footer shows "Soleil observe", BrightBar can see the key press but cannot
-consume the system event; macOS may still change the built-in display in
-parallel. Granting the permission lets BrightBar show "Soleil actif" and handle
-the key coherently.
+MIT. See [LICENSE](LICENSE).
