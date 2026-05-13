@@ -117,25 +117,19 @@ struct ContentView: View {
     private var keyboardStatusText: String {
         guard manager.isEnabled else { return "BrightBar desactive" }
 
-        return switch (manager.brightnessKeyMode, manager.optionHotkeysEnabled) {
-        case (.intercepting, true):
-            "Soleil / Opt+fleches"
-        case (.intercepting, false):
-            "Soleil actif"
-        case (.observing, true):
-            "Soleil observe / Opt"
-        case (.observing, false):
-            "Soleil observe"
-        case (.disabled, true):
-            "Opt+fleches actif"
-        case (.disabled, false):
-            "Clavier non actif"
+        return switch manager.brightnessKeyMode {
+        case .intercepting:
+            fallbackHotkeysText.map { "Soleil / \($0)" } ?? "Soleil actif"
+        case .observing:
+            fallbackHotkeysText.map { "\($0) actif" } ?? "Soleil observe"
+        case .disabled:
+            fallbackHotkeysText.map { "\($0) actif" } ?? "Clavier non actif"
         }
     }
 
     private var keyboardStatusIcon: String {
         guard manager.isEnabled else { return "power" }
-        return manager.brightnessKeyMode != .disabled || manager.optionHotkeysEnabled ? "keyboard" : "keyboard.badge.ellipsis"
+        return manager.brightnessKeyMode != .disabled || hasFallbackHotkeys ? "keyboard" : "keyboard.badge.ellipsis"
     }
 
     private var keyboardStatusColor: Color {
@@ -147,7 +141,7 @@ struct ContentView: View {
         case .observing:
             .orange
         case .disabled:
-            manager.optionHotkeysEnabled ? .secondary : .orange
+            hasFallbackHotkeys ? .secondary : .orange
         }
     }
 
@@ -158,13 +152,30 @@ struct ContentView: View {
 
         return switch manager.brightnessKeyMode {
         case .intercepting:
-            "BrightBar intercepte F1/F2 et controle les ecrans."
+            "BrightBar intercepte les touches soleil macOS et controle les ecrans."
         case .observing:
-            "BrightBar voit F1/F2 mais macOS garde aussi la touche. Autorise BrightBar dans Reglages Systeme > Confidentialite et securite > Accessibilite."
+            "BrightBar utilise les raccourcis F1/F2 standards si disponibles, mais n'intercepte pas encore les touches soleil macOS. Autorise BrightBar dans Reglages Systeme > Confidentialite et securite > Accessibilite."
         case .disabled:
-            manager.optionHotkeysEnabled
-                ? "Utilise Option + fleche haut/bas. Autorise BrightBar dans Accessibilite pour F1/F2."
+            hasFallbackHotkeys
+                ? "Utilise les raccourcis clavier disponibles. Autorise BrightBar dans Accessibilite pour intercepter les touches soleil."
                 : "Autorise BrightBar dans Reglages Systeme > Confidentialite et securite > Accessibilite."
+        }
+    }
+
+    private var hasFallbackHotkeys: Bool {
+        manager.functionHotkeysEnabled || manager.optionHotkeysEnabled
+    }
+
+    private var fallbackHotkeysText: String? {
+        switch (manager.functionHotkeysEnabled, manager.optionHotkeysEnabled) {
+        case (true, true):
+            "F1/F2 + Opt"
+        case (true, false):
+            "F1/F2"
+        case (false, true):
+            "Opt+fleches"
+        case (false, false):
+            nil
         }
     }
 }

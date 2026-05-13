@@ -5,6 +5,7 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 APP_NAME="BrightBar"
 VERSION="${VERSION:-0.1.1}"
 BUILD_NUMBER="${BUILD_NUMBER:-2}"
+SIGNING_IDENTITY="${SIGNING_IDENTITY:-Developer ID Application: Primo Studio (4QB44XVHNL)}"
 BUILD_DIR="$ROOT_DIR/.build/release"
 DIST_DIR="$ROOT_DIR/dist"
 APP_DIR="$DIST_DIR/$APP_NAME.app"
@@ -63,6 +64,10 @@ cat > "$CONTENTS_DIR/Info.plist" <<PLIST
 </plist>
 PLIST
 
-codesign --force --deep --sign - "$APP_DIR" >/dev/null 2>&1
+if security find-identity -v -p codesigning | grep -Fq "$SIGNING_IDENTITY"; then
+  codesign --force --deep --sign "$SIGNING_IDENTITY" "$APP_DIR" >/dev/null 2>&1
+else
+  codesign --force --deep --sign - "$APP_DIR" >/dev/null 2>&1
+fi
 
 echo "$APP_DIR"

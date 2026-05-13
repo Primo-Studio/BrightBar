@@ -30,12 +30,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 final class HotkeyManager {
     static let shared = HotkeyManager()
 
-    private var brightnessUp: EventHotKeyRef?
-    private var brightnessDown: EventHotKeyRef?
+    private var optionBrightnessUp: EventHotKeyRef?
+    private var optionBrightnessDown: EventHotKeyRef?
+    private var functionBrightnessUp: EventHotKeyRef?
+    private var functionBrightnessDown: EventHotKeyRef?
     private var eventHandler: EventHandlerRef?
     private var brightnessKeyController: BrightnessKeyController?
     private var callback: ((_ isUp: Bool) -> Void)?
-    private var registrationStatus = HotkeyRegistrationStatus(optionHotkeys: false, brightnessKeyMode: .disabled)
+    private var registrationStatus = HotkeyRegistrationStatus(
+        optionHotkeys: false,
+        functionHotkeys: false,
+        brightnessKeyMode: .disabled
+    )
     private var isEnabled = true
 
     @discardableResult
@@ -52,14 +58,17 @@ final class HotkeyManager {
     @discardableResult
     func refresh() -> HotkeyRegistrationStatus {
         guard isEnabled else {
-            return HotkeyRegistrationStatus(optionHotkeys: false, brightnessKeyMode: .disabled)
+            return HotkeyRegistrationStatus(optionHotkeys: false, functionHotkeys: false, brightnessKeyMode: .disabled)
         }
 
-        let optionHotkeys = installOptionHotkeyHandler() && registerOptionHotkeys()
+        let canHandleCarbonHotkeys = installCarbonHotkeyHandler()
+        let optionHotkeys = canHandleCarbonHotkeys && registerOptionHotkeys()
+        let functionHotkeys = canHandleCarbonHotkeys && registerFunctionHotkeys()
         let brightnessKeyMode = brightnessKeyController?.refreshMode() ?? .disabled
 
         registrationStatus = HotkeyRegistrationStatus(
             optionHotkeys: optionHotkeys,
+            functionHotkeys: functionHotkeys,
             brightnessKeyMode: brightnessKeyMode
         )
         return registrationStatus
@@ -70,9 +79,13 @@ final class HotkeyManager {
         isEnabled = enabled
 
         guard enabled else {
-            unregisterOptionHotkeys()
+            unregisterCarbonHotkeys()
             _ = brightnessKeyController?.setEnabled(false)
-            registrationStatus = HotkeyRegistrationStatus(optionHotkeys: false, brightnessKeyMode: .disabled)
+            registrationStatus = HotkeyRegistrationStatus(
+                optionHotkeys: false,
+                functionHotkeys: false,
+                brightnessKeyMode: .disabled
+            )
             return registrationStatus
         }
 
@@ -83,14 +96,14 @@ final class HotkeyManager {
     @discardableResult
     func requestAccessibilityPermission() -> HotkeyRegistrationStatus {
         guard isEnabled else {
-            return HotkeyRegistrationStatus(optionHotkeys: false, brightnessKeyMode: .disabled)
+            return HotkeyRegistrationStatus(optionHotkeys: false, functionHotkeys: false, brightnessKeyMode: .disabled)
         }
 
         brightnessKeyController?.requestAccessibilityPermission()
         return refresh()
     }
 
-    private func installOptionHotkeyHandler() -> Bool {
+    private func installCarbonHotkeyHandler() -> Bool {
         if eventHandler != nil { return true }
 
         var eventType = EventTypeSpec(
@@ -114,9 +127,9 @@ final class HotkeyManager {
                 guard HotkeyManager.shared.isEnabled else { return }
 
                 switch hotKeyID.id {
-                case 1:
+                case 1, 3:
                     HotkeyManager.shared.callback?(true)
-                case 2:
+                case 2, 4:
                     HotkeyManager.shared.callback?(false)
                 default:
                     break
@@ -139,63 +152,124 @@ final class HotkeyManager {
     }
 
     private func registerOptionHotkeys() -> Bool {
-        if brightnessUp != nil, brightnessDown != nil {
+        if optionBrightnessUp != nil, optionBrightnessDown != nil {
             return true
         }
 
-        unregisterOptionHotkeys()
+        unregisterOptionHotkeysOnly()
 
         let upID = EventHotKeyID(signature: OSType(0x42425550), id: 1) // BBUP
-        var nextBrightnessUp: EventHotKeyRef?
+        var nextOptionBrightnessUp: EventHotKeyRef?
         let upStatus = RegisterEventHotKey(
             UInt32(kVK_UpArrow),
             UInt32(optionKey),
             upID,
             GetApplicationEventTarget(),
             0,
-            &nextBrightnessUp
+            &nextOptionBrightnessUp
         )
 
         guard upStatus == noErr else { return false }
 
         let downID = EventHotKeyID(signature: OSType(0x4242444E), id: 2) // BBDN
-        var nextBrightnessDown: EventHotKeyRef?
+        var nextOptionBrightnessDown: EventHotKeyRef?
         let downStatus = RegisterEventHotKey(
             UInt32(kVK_DownArrow),
             UInt32(optionKey),
             downID,
             GetApplicationEventTarget(),
             0,
-            &nextBrightnessDown
+            &nextOptionBrightnessDown
         )
 
         guard downStatus == noErr else {
-            if let nextBrightnessUp {
-                UnregisterEventHotKey(nextBrightnessUp)
+            if let nextOptionBrightnessUp {
+                UnregisterEventHotKey(nextOptionBrightnessUp)
             }
             return false
         }
 
-        brightnessUp = nextBrightnessUp
-        brightnessDown = nextBrightnessDown
+        optionBrightnessUp = nextOptionBrightnessUp
+        optionBrightnessDown = nextOptionBrightnessDown
         return true
     }
 
-    private func unregisterOptionHotkeys() {
-        if let brightnessUp {
-            UnregisterEventHotKey(brightnessUp)
-            self.brightnessUp = nil
+    private func registerFunctionHotkeys() -> Bool {
+        if functionBrightnessUp != nil, functionBrightnessDown != nil {
+            return true
         }
 
-        if let brightnessDown {
-            UnregisterEventHotKey(brightnessDown)
-            self.brightnessDown = nil
+        unregisterFunctionHotkeysOnly()
+
+        let upID = EventHotKeyID(signature: OSType(0x42424632), id: 3) // BBF2
+        var nextFunctionBrightnessUp: EventHotKeyRef?
+        let upStatus = RegisterEventHotKey(
+            UInt32(kVK_F2),
+            0,
+            upID,
+            GetApplicationEventTarget(),
+            0,
+            &nextFunctionBrightnessUp
+        )
+
+        guard upStatus == noErr else { return false }
+
+        let downID = EventHotKeyID(signature: OSType(0x42424631), id: 4) // BBF1
+        var nextFunctionBrightnessDown: EventHotKeyRef?
+        let downStatus = RegisterEventHotKey(
+            UInt32(kVK_F1),
+            0,
+            downID,
+            GetApplicationEventTarget(),
+            0,
+            &nextFunctionBrightnessDown
+        )
+
+        guard downStatus == noErr else {
+            if let nextFunctionBrightnessUp {
+                UnregisterEventHotKey(nextFunctionBrightnessUp)
+            }
+            return false
+        }
+
+        functionBrightnessUp = nextFunctionBrightnessUp
+        functionBrightnessDown = nextFunctionBrightnessDown
+        return true
+    }
+
+    private func unregisterCarbonHotkeys() {
+        unregisterOptionHotkeysOnly()
+        unregisterFunctionHotkeysOnly()
+    }
+
+    private func unregisterOptionHotkeysOnly() {
+        if let optionBrightnessUp {
+            UnregisterEventHotKey(optionBrightnessUp)
+            self.optionBrightnessUp = nil
+        }
+
+        if let optionBrightnessDown {
+            UnregisterEventHotKey(optionBrightnessDown)
+            self.optionBrightnessDown = nil
+        }
+    }
+
+    private func unregisterFunctionHotkeysOnly() {
+        if let functionBrightnessUp {
+            UnregisterEventHotKey(functionBrightnessUp)
+            self.functionBrightnessUp = nil
+        }
+
+        if let functionBrightnessDown {
+            UnregisterEventHotKey(functionBrightnessDown)
+            self.functionBrightnessDown = nil
         }
     }
 }
 
 struct HotkeyRegistrationStatus {
     let optionHotkeys: Bool
+    let functionHotkeys: Bool
     let brightnessKeyMode: BrightnessKeyMode
 }
 

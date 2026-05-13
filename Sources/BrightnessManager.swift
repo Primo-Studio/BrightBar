@@ -30,6 +30,7 @@ private let ddcBrightnessCommand: UInt8 = 0x10
 final class BrightnessManager: ObservableObject {
     @Published var displays: [DisplayInfo] = []
     @Published var optionHotkeysEnabled = false
+    @Published var functionHotkeysEnabled = false
     @Published var brightnessKeyMode: BrightnessKeyMode = .disabled
     @Published var lastErrorMessage: String?
     @Published var isEnabled: Bool
@@ -84,6 +85,7 @@ final class BrightnessManager: ObservableObject {
             }
         }
         optionHotkeysEnabled = hotkeyStatus.optionHotkeys
+        functionHotkeysEnabled = hotkeyStatus.functionHotkeys
         brightnessKeyMode = hotkeyStatus.brightnessKeyMode
         if !isEnabled {
             setEnabled(false)
@@ -93,12 +95,14 @@ final class BrightnessManager: ObservableObject {
     func refreshKeyboardHooks() {
         guard isEnabled else {
             optionHotkeysEnabled = false
+            functionHotkeysEnabled = false
             brightnessKeyMode = .disabled
             return
         }
 
         let hotkeyStatus = HotkeyManager.shared.setEnabled(true)
         optionHotkeysEnabled = hotkeyStatus.optionHotkeys
+        functionHotkeysEnabled = hotkeyStatus.functionHotkeys
         brightnessKeyMode = hotkeyStatus.brightnessKeyMode
     }
 
@@ -107,6 +111,7 @@ final class BrightnessManager: ObservableObject {
 
         let hotkeyStatus = HotkeyManager.shared.requestAccessibilityPermission()
         optionHotkeysEnabled = hotkeyStatus.optionHotkeys
+        functionHotkeysEnabled = hotkeyStatus.functionHotkeys
         brightnessKeyMode = hotkeyStatus.brightnessKeyMode
     }
 
@@ -121,6 +126,7 @@ final class BrightnessManager: ObservableObject {
             cancelPendingKeyboardAdjustment()
             let hotkeyStatus = HotkeyManager.shared.setEnabled(false)
             optionHotkeysEnabled = hotkeyStatus.optionHotkeys
+            functionHotkeysEnabled = hotkeyStatus.functionHotkeys
             brightnessKeyMode = hotkeyStatus.brightnessKeyMode
             closeAllSoftwareDimming()
             lastErrorMessage = nil
