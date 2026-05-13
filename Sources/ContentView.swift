@@ -189,6 +189,7 @@ private struct GlobalBrightnessView: View {
                     in: 0...1,
                     step: 0.01
                 )
+                .disabled(!manager.isEnabled)
 
                 Image(systemName: "sun.max.fill")
                     .font(.caption2)
@@ -246,7 +247,7 @@ private struct DisplaySliderView: View {
 
                 Slider(
                     value: Binding(
-                        get: { currentDisplay?.brightness ?? display.brightness },
+                        get: { self.display?.brightness ?? display.brightness },
                         set: { manager.setBrightness(for: displayID, to: $0) }
                     ),
                     in: display.minBrightness...display.maxBrightness,
@@ -276,7 +277,7 @@ private struct DisplaySliderView: View {
 
                 Stepper(
                     value: Binding(
-                        get: { currentDisplay?.maxNits ?? display.maxNits },
+                        get: { self.display?.maxNits ?? display.maxNits },
                         set: { manager.setMaxNits(for: displayID, to: $0) }
                     ),
                     in: 80...2_000,
@@ -293,10 +294,6 @@ private struct DisplaySliderView: View {
     }
 
     private var display: DisplayInfo? {
-        currentDisplay
-    }
-
-    private var currentDisplay: DisplayInfo? {
         manager.displays.first { $0.id == displayID }
     }
 

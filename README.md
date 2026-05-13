@@ -25,6 +25,7 @@ the brightness keys.
 - Sub-zero dimming below 20%.
 - Presets: 5%, 20%, 50%, 100%.
 - Native brightness keys support, plus `Option + Up` and `Option + Down`.
+- Enable/disable toggle that releases keyboard hooks and closes software dimming.
 - Estimated nits per display, based on configurable max-nits values.
 - Sparkle-based automatic updates through GitHub Releases.
 
@@ -37,6 +38,9 @@ real hardware brightness.
 
 Nit values are estimates. macOS and DDC/CI expose brightness levels, not
 calibrated luminance readings.
+
+When BrightBar is disabled from the power button, it stops handling F1/F2,
+unregisters its fallback shortcuts, and removes software dimming overlays.
 
 ## Build
 

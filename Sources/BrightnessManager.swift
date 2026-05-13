@@ -110,10 +110,11 @@ final class BrightnessManager: ObservableObject {
             refreshKeyboardHooks()
             reapplyCurrentBrightness()
         } else {
+            cancelPendingKeyboardAdjustment()
             let hotkeyStatus = HotkeyManager.shared.setEnabled(false)
             optionHotkeysEnabled = hotkeyStatus.optionHotkeys
             brightnessKeyMode = hotkeyStatus.brightnessKeyMode
-            hideAllSoftwareDimming()
+            closeAllSoftwareDimming()
             lastErrorMessage = nil
         }
     }
@@ -192,12 +193,15 @@ final class BrightnessManager: ObservableObject {
     }
 
     private func queueKeyboardAdjustment(isUp: Bool) {
+        guard isEnabled else { return }
+
         pendingKeyboardDelta += isUp ? hotkeyStep : -hotkeyStep
 
         guard keyboardAdjustmentTask == nil else { return }
 
         keyboardAdjustmentTask = Task { @MainActor in
             try? await Task.sleep(nanoseconds: 25_000_000)
+            guard !Task.isCancelled else { return }
             let delta = pendingKeyboardDelta
             pendingKeyboardDelta = 0
             keyboardAdjustmentTask = nil
@@ -351,9 +355,9 @@ final class BrightnessManager: ObservableObject {
         dimmingWindows.removeValue(forKey: displayID)
     }
 
-    private func hideAllSoftwareDimming() {
+    private func closeAllSoftwareDimming() {
         for displayID in Array(dimmingWindows.keys) {
-            hideSoftwareDimming(for: displayID)
+            closeSoftwareDimming(for: displayID)
         }
 
         var updatedDisplays = displays
@@ -361,6 +365,12 @@ final class BrightnessManager: ObservableObject {
             updatedDisplays[index].isSoftwareDimmed = false
         }
         displays = updatedDisplays
+    }
+
+    private func cancelPendingKeyboardAdjustment() {
+        keyboardAdjustmentTask?.cancel()
+        keyboardAdjustmentTask = nil
+        pendingKeyboardDelta = 0
     }
 
     private func reapplyCurrentBrightness() {
