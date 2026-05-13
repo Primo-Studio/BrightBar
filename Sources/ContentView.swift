@@ -30,6 +30,9 @@ struct ContentView: View {
         }
         .padding(16)
         .frame(width: 330)
+        .onAppear {
+            manager.refreshKeyboardHooks()
+        }
     }
 
     private var header: some View {
@@ -49,6 +52,15 @@ struct ContentView: View {
             }
 
             Spacer()
+
+            Button {
+                manager.setEnabled(!manager.isEnabled)
+            } label: {
+                Image(systemName: manager.isEnabled ? "power.circle.fill" : "power.circle")
+                    .foregroundStyle(manager.isEnabled ? .green : .orange)
+            }
+            .buttonStyle(.borderless)
+            .help(manager.isEnabled ? "Desactiver BrightBar" : "Activer BrightBar")
 
             Button {
                 manager.refreshDisplays()
@@ -93,7 +105,9 @@ struct ContentView: View {
     }
 
     private var keyboardStatusText: String {
-        switch (manager.brightnessKeyMode, manager.optionHotkeysEnabled) {
+        guard manager.isEnabled else { return "BrightBar desactive" }
+
+        return switch (manager.brightnessKeyMode, manager.optionHotkeysEnabled) {
         case (.intercepting, true):
             "Soleil / Opt+fleches"
         case (.intercepting, false):
@@ -110,11 +124,14 @@ struct ContentView: View {
     }
 
     private var keyboardStatusIcon: String {
-        manager.brightnessKeyMode != .disabled || manager.optionHotkeysEnabled ? "keyboard" : "keyboard.badge.ellipsis"
+        guard manager.isEnabled else { return "power" }
+        return manager.brightnessKeyMode != .disabled || manager.optionHotkeysEnabled ? "keyboard" : "keyboard.badge.ellipsis"
     }
 
     private var keyboardStatusColor: Color {
-        switch manager.brightnessKeyMode {
+        guard manager.isEnabled else { return .orange }
+
+        return switch manager.brightnessKeyMode {
         case .intercepting:
             .secondary
         case .observing:
@@ -125,7 +142,11 @@ struct ContentView: View {
     }
 
     private var keyboardStatusHelp: String {
-        switch manager.brightnessKeyMode {
+        guard manager.isEnabled else {
+            return "BrightBar ne capte plus F1/F2 et coupe le dimming logiciel."
+        }
+
+        return switch manager.brightnessKeyMode {
         case .intercepting:
             "BrightBar intercepte F1/F2 et controle les ecrans."
         case .observing:
@@ -180,6 +201,13 @@ private struct GlobalBrightnessView: View {
                     .foregroundStyle(.blue)
                     .fixedSize(horizontal: false, vertical: true)
             }
+
+            if !manager.isEnabled {
+                Label("BrightBar est desactive: dimming coupe, F1/F2 rendus a macOS.", systemImage: "power")
+                    .font(.caption2)
+                    .foregroundStyle(.orange)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
         }
     }
 }
@@ -224,7 +252,7 @@ private struct DisplaySliderView: View {
                     in: display.minBrightness...display.maxBrightness,
                     step: 0.01
                 )
-                .disabled(!display.isControllable)
+                .disabled(!manager.isEnabled || !display.isControllable)
 
                 if display.lastWriteFailed {
                     Label("Echec DDC: active DDC/CI dans le menu de l'ecran.", systemImage: "exclamationmark.triangle.fill")
@@ -258,6 +286,7 @@ private struct DisplaySliderView: View {
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                 }
+                .disabled(!manager.isEnabled)
                 .help("Pic lumineux theorique de cet ecran, utilise pour estimer les nits.")
             }
         }
@@ -309,6 +338,7 @@ private struct PresetRowView: View {
                 }
                 .buttonStyle(.bordered)
                 .controlSize(.small)
+                .disabled(!manager.isEnabled)
             }
         }
     }

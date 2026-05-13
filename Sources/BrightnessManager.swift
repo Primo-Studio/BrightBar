@@ -32,10 +32,12 @@ final class BrightnessManager: ObservableObject {
     @Published var optionHotkeysEnabled = false
     @Published var brightnessKeyMode: BrightnessKeyMode = .disabled
     @Published var lastErrorMessage: String?
+    @Published var isEnabled: Bool
 
     private let defaults = UserDefaults.standard
     private let prefsKey = "BrightBar.DisplayBrightness.v2"
     private let nitsPrefsKey = "BrightBar.DisplayMaxNits.v1"
+    private let enabledPrefsKey = "BrightBar.Enabled.v1"
     private let hotkeyStep = 0.05
     private var dimmingWindows: [CGDirectDisplayID: NSWindow] = [:]
     private var pendingKeyboardDelta = 0.0
@@ -73,6 +75,7 @@ final class BrightnessManager: ObservableObject {
     }
 
     init() {
+        isEnabled = defaults.object(forKey: enabledPrefsKey) as? Bool ?? true
         refreshDisplays()
         let hotkeyStatus = HotkeyManager.shared.register { [weak self] isUp in
             Task { @MainActor in
@@ -82,6 +85,37 @@ final class BrightnessManager: ObservableObject {
         }
         optionHotkeysEnabled = hotkeyStatus.optionHotkeys
         brightnessKeyMode = hotkeyStatus.brightnessKeyMode
+        if !isEnabled {
+            setEnabled(false)
+        }
+    }
+
+    func refreshKeyboardHooks() {
+        guard isEnabled else {
+            optionHotkeysEnabled = false
+            brightnessKeyMode = .disabled
+            return
+        }
+
+        let hotkeyStatus = HotkeyManager.shared.setEnabled(true)
+        optionHotkeysEnabled = hotkeyStatus.optionHotkeys
+        brightnessKeyMode = hotkeyStatus.brightnessKeyMode
+    }
+
+    func setEnabled(_ enabled: Bool) {
+        isEnabled = enabled
+        defaults.set(enabled, forKey: enabledPrefsKey)
+
+        if enabled {
+            refreshKeyboardHooks()
+            reapplyCurrentBrightness()
+        } else {
+            let hotkeyStatus = HotkeyManager.shared.setEnabled(false)
+            optionHotkeysEnabled = hotkeyStatus.optionHotkeys
+            brightnessKeyMode = hotkeyStatus.brightnessKeyMode
+            hideAllSoftwareDimming()
+            lastErrorMessage = nil
+        }
     }
 
     func refreshDisplays() {
@@ -142,12 +176,16 @@ final class BrightnessManager: ObservableObject {
     }
 
     func setAllBrightness(to value: Double) {
+        guard isEnabled else { return }
+
         for display in displays where display.isControllable {
             setBrightness(for: display.id, to: value)
         }
     }
 
     func adjustAllBrightness(by delta: Double) {
+        guard isEnabled else { return }
+
         for display in displays where display.isControllable {
             setBrightness(for: display.id, to: display.brightness + delta)
         }
@@ -178,6 +216,7 @@ final class BrightnessManager: ObservableObject {
     }
 
     func setBrightness(for displayID: CGDirectDisplayID, to value: Double) {
+        guard isEnabled else { return }
         guard let index = displays.firstIndex(where: { $0.id == displayID }) else { return }
         guard displays[index].isControllable else { return }
 
@@ -290,8 +329,9 @@ final class BrightnessManager: ObservableObject {
         window.hasShadow = false
         window.hidesOnDeactivate = false
         window.isOpaque = false
+        window.acceptsMouseMovedEvents = false
         window.ignoresMouseEvents = true
-        window.level = .screenSaver
+        window.level = .statusBar
         window.collectionBehavior = [.canJoinAllSpaces, .stationary, .ignoresCycle, .fullScreenAuxiliary]
         window.orderFrontRegardless()
 
@@ -309,6 +349,24 @@ final class BrightnessManager: ObservableObject {
         dimmingWindows[displayID]?.orderOut(nil)
         dimmingWindows[displayID]?.close()
         dimmingWindows.removeValue(forKey: displayID)
+    }
+
+    private func hideAllSoftwareDimming() {
+        for displayID in Array(dimmingWindows.keys) {
+            hideSoftwareDimming(for: displayID)
+        }
+
+        var updatedDisplays = displays
+        for index in updatedDisplays.indices {
+            updatedDisplays[index].isSoftwareDimmed = false
+        }
+        displays = updatedDisplays
+    }
+
+    private func reapplyCurrentBrightness() {
+        for display in displays where display.isControllable {
+            setBrightness(for: display.id, to: display.brightness)
+        }
     }
 
     private func saveBrightness(_ value: Double, for persistentID: String) {

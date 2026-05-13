@@ -36,13 +36,14 @@ final class HotkeyManager {
     private var brightnessKeyController: BrightnessKeyController?
     private var callback: ((_ isUp: Bool) -> Void)?
     private var registrationStatus = HotkeyRegistrationStatus(optionHotkeys: false, brightnessKeyMode: .disabled)
+    private var isEnabled = true
 
     @discardableResult
     func register(callback: @escaping (_ isUp: Bool) -> Void) -> HotkeyRegistrationStatus {
         self.callback = callback
 
         if registrationStatus.optionHotkeys || registrationStatus.brightnessKeyMode != .disabled {
-            return registrationStatus
+            return refresh()
         }
 
         var eventType = EventTypeSpec(
@@ -63,6 +64,8 @@ final class HotkeyManager {
             )
 
             DispatchQueue.main.async {
+                guard HotkeyManager.shared.isEnabled else { return }
+
                 switch hotKeyID.id {
                 case 1:
                     HotkeyManager.shared.callback?(true)
@@ -106,13 +109,48 @@ final class HotkeyManager {
         )
 
         brightnessKeyController = BrightnessKeyController(callback: callback)
-        let brightnessKeyMode = brightnessKeyController?.start() ?? .disabled
+        let brightnessKeyMode = brightnessKeyController?.refreshMode() ?? .disabled
 
         registrationStatus = HotkeyRegistrationStatus(
             optionHotkeys: handlerStatus == noErr && upStatus == noErr && downStatus == noErr,
             brightnessKeyMode: brightnessKeyMode
         )
         return registrationStatus
+    }
+
+    @discardableResult
+    func refresh() -> HotkeyRegistrationStatus {
+        guard isEnabled else {
+            return HotkeyRegistrationStatus(optionHotkeys: false, brightnessKeyMode: .disabled)
+        }
+
+        if let brightnessKeyController {
+            registrationStatus = HotkeyRegistrationStatus(
+                optionHotkeys: registrationStatus.optionHotkeys,
+                brightnessKeyMode: brightnessKeyController.refreshMode()
+            )
+        }
+
+        return registrationStatus
+    }
+
+    @discardableResult
+    func setEnabled(_ enabled: Bool) -> HotkeyRegistrationStatus {
+        isEnabled = enabled
+
+        if let brightnessKeyController {
+            let mode = brightnessKeyController.setEnabled(enabled)
+            registrationStatus = HotkeyRegistrationStatus(
+                optionHotkeys: registrationStatus.optionHotkeys,
+                brightnessKeyMode: mode
+            )
+        }
+
+        if !enabled {
+            return HotkeyRegistrationStatus(optionHotkeys: false, brightnessKeyMode: .disabled)
+        }
+
+        return refresh()
     }
 }
 
@@ -134,6 +172,7 @@ fileprivate final class BrightnessKeyController {
     private var localMonitor: Any?
     private var globalMonitor: Any?
     private var lastFallbackEventTime: TimeInterval = 0
+    private var isEnabled = true
 
     init(callback: @escaping (_ isUp: Bool) -> Void) {
         self.callback = callback
@@ -153,13 +192,36 @@ fileprivate final class BrightnessKeyController {
         }
     }
 
-    func start() -> BrightnessKeyMode {
-        if startInterceptingTap() {
+    func refreshMode() -> BrightnessKeyMode {
+        guard isEnabled else { return .disabled }
+
+        if let eventTap, CGEvent.tapIsEnabled(tap: eventTap) {
             return .intercepting
         }
 
-        startFallbackMonitors()
+        if startInterceptingTap() {
+            stopFallbackMonitors()
+            return .intercepting
+        }
+
+        if localMonitor == nil && globalMonitor == nil {
+            startFallbackMonitors()
+        }
         return localMonitor != nil || globalMonitor != nil ? .observing : .disabled
+    }
+
+    func setEnabled(_ enabled: Bool) -> BrightnessKeyMode {
+        isEnabled = enabled
+
+        guard enabled else {
+            if let eventTap {
+                CGEvent.tapEnable(tap: eventTap, enable: false)
+            }
+            stopFallbackMonitors()
+            return .disabled
+        }
+
+        return refreshMode()
     }
 
     private func startInterceptingTap() -> Bool {
@@ -212,7 +274,21 @@ fileprivate final class BrightnessKeyController {
         }
     }
 
+    private func stopFallbackMonitors() {
+        if let localMonitor {
+            NSEvent.removeMonitor(localMonitor)
+            self.localMonitor = nil
+        }
+
+        if let globalMonitor {
+            NSEvent.removeMonitor(globalMonitor)
+            self.globalMonitor = nil
+        }
+    }
+
     private func handleFallback(direction: BrightnessDirection) {
+        guard isEnabled else { return }
+
         let now = Date.timeIntervalSinceReferenceDate
         guard now - lastFallbackEventTime > 0.035 else { return }
         lastFallbackEventTime = now
@@ -221,6 +297,10 @@ fileprivate final class BrightnessKeyController {
     }
 
     fileprivate func handleTap(type: CGEventType, event: CGEvent) -> Unmanaged<CGEvent>? {
+        guard isEnabled else {
+            return Unmanaged.passUnretained(event)
+        }
+
         if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
             if let eventTap {
                 CGEvent.tapEnable(tap: eventTap, enable: true)
