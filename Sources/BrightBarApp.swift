@@ -80,6 +80,16 @@ final class HotkeyManager {
         return refresh()
     }
 
+    @discardableResult
+    func requestAccessibilityPermission() -> HotkeyRegistrationStatus {
+        guard isEnabled else {
+            return HotkeyRegistrationStatus(optionHotkeys: false, brightnessKeyMode: .disabled)
+        }
+
+        brightnessKeyController?.requestAccessibilityPermission()
+        return refresh()
+    }
+
     private func installOptionHotkeyHandler() -> Bool {
         if eventHandler != nil { return true }
 
@@ -203,6 +213,7 @@ fileprivate final class BrightnessKeyController {
     private var globalMonitor: Any?
     private var lastFallbackEventTime: TimeInterval = 0
     private var isEnabled = true
+    private var didRequestAccessibilityThisLaunch = false
 
     init(callback: @escaping (_ isUp: Bool) -> Void) {
         self.callback = callback
@@ -216,7 +227,7 @@ fileprivate final class BrightnessKeyController {
     func refreshMode() -> BrightnessKeyMode {
         guard isEnabled else { return .disabled }
 
-        if resumeOrStartInterceptingTap() {
+        if resumeOrStartInterceptingTap(promptForAccessibility: !didRequestAccessibilityThisLaunch) {
             stopFallbackMonitors()
             return .intercepting
         }
@@ -239,7 +250,12 @@ fileprivate final class BrightnessKeyController {
         return refreshMode()
     }
 
-    private func resumeOrStartInterceptingTap() -> Bool {
+    func requestAccessibilityPermission() {
+        didRequestAccessibilityThisLaunch = true
+        _ = isAccessibilityTrusted(prompt: true)
+    }
+
+    private func resumeOrStartInterceptingTap(promptForAccessibility: Bool) -> Bool {
         if let eventTap {
             if CFMachPortIsValid(eventTap) {
                 CGEvent.tapEnable(tap: eventTap, enable: true)
@@ -249,14 +265,11 @@ fileprivate final class BrightnessKeyController {
             stopInterceptingTap()
         }
 
-        return startInterceptingTap()
+        return startInterceptingTap(promptForAccessibility: promptForAccessibility)
     }
 
-    private func startInterceptingTap() -> Bool {
-        let trustOptions = [
-            kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true
-        ] as CFDictionary
-        guard AXIsProcessTrustedWithOptions(trustOptions) else {
+    private func startInterceptingTap(promptForAccessibility: Bool) -> Bool {
+        guard isAccessibilityTrusted(prompt: promptForAccessibility) else {
             return false
         }
 
@@ -285,6 +298,18 @@ fileprivate final class BrightnessKeyController {
         CFRunLoopAddSource(CFRunLoopGetMain(), source, .commonModes)
         CGEvent.tapEnable(tap: tap, enable: true)
         return true
+    }
+
+    private func isAccessibilityTrusted(prompt: Bool) -> Bool {
+        if !prompt {
+            return AXIsProcessTrusted()
+        }
+
+        didRequestAccessibilityThisLaunch = true
+        let trustOptions = [
+            kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true
+        ] as CFDictionary
+        return AXIsProcessTrustedWithOptions(trustOptions)
     }
 
     private func stopInterceptingTap() {

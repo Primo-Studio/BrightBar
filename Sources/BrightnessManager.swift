@@ -102,6 +102,14 @@ final class BrightnessManager: ObservableObject {
         brightnessKeyMode = hotkeyStatus.brightnessKeyMode
     }
 
+    func requestKeyboardPermission() {
+        guard isEnabled else { return }
+
+        let hotkeyStatus = HotkeyManager.shared.requestAccessibilityPermission()
+        optionHotkeysEnabled = hotkeyStatus.optionHotkeys
+        brightnessKeyMode = hotkeyStatus.brightnessKeyMode
+    }
+
     func setEnabled(_ enabled: Bool) {
         isEnabled = enabled
         defaults.set(enabled, forKey: enabledPrefsKey)

@@ -87,6 +87,16 @@ struct ContentView: View {
                     .help(message)
             }
 
+            if manager.isEnabled && manager.brightnessKeyMode != .intercepting {
+                Button {
+                    manager.requestKeyboardPermission()
+                } label: {
+                    Image(systemName: "keyboard.badge.ellipsis")
+                }
+                .buttonStyle(.borderless)
+                .help("Demander l'autorisation Accessibilite pour F1/F2")
+            }
+
             Button {
                 updateManager.checkForUpdates()
             } label: {
